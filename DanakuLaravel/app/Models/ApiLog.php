@@ -16,6 +16,7 @@ class ApiLog extends Model
         'characters_processed',
         'latency_ms',
         'error_message',
+        'response_content',
     ];
 
     public function user(): BelongsTo

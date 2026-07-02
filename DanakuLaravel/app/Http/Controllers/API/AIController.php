@@ -29,7 +29,7 @@ class AIController extends Controller
         try {
             $data = $this->callGeminiParseText($text);
             $latency = (microtime(true) - $startTime) * 1000;
-            $this->logUsage('stt', 'gemini', 'gemini-2.5-flash', 'success', strlen($text) + strlen(json_encode($data)), $latency);
+            $this->logUsage('stt', 'gemini', 'gemini-2.5-flash', 'success', strlen($text) + strlen(json_encode($data)), $latency, null, json_encode($data));
             return response()->json($data);
         } catch (\Exception $e) {
             $latency = (microtime(true) - $startTime) * 1000;
@@ -41,7 +41,7 @@ class AIController extends Controller
         try {
             $data = $this->callGroqParseText($text);
             $latency = (microtime(true) - $startTime) * 1000;
-            $this->logUsage('stt', 'groq', 'qwen-2.5-32b', 'success', strlen($text) + strlen(json_encode($data)), $latency);
+            $this->logUsage('stt', 'groq', 'qwen-2.5-32b', 'success', strlen($text) + strlen(json_encode($data)), $latency, null, json_encode($data));
             return response()->json($data);
         } catch (\Exception $e) {
             $latency = (microtime(true) - $startTime) * 1000;
@@ -53,7 +53,7 @@ class AIController extends Controller
         try {
             $data = $this->callNvidiaParseText($text);
             $latency = (microtime(true) - $startTime) * 1000;
-            $this->logUsage('stt', 'nvidia', 'llama-3.2-11b', 'success', strlen($text) + strlen(json_encode($data)), $latency);
+            $this->logUsage('stt', 'nvidia', 'llama-3.2-11b', 'success', strlen($text) + strlen(json_encode($data)), $latency, null, json_encode($data));
             return response()->json($data);
         } catch (\Exception $e) {
             $latency = (microtime(true) - $startTime) * 1000;
@@ -84,7 +84,7 @@ class AIController extends Controller
         try {
             $data = $this->callGeminiParseReceipt($base64Image, $mimeType);
             $latency = (microtime(true) - $startTime) * 1000;
-            $this->logUsage('ocr', 'gemini', 'gemini-2.5-flash', 'success', 1000 + strlen(json_encode($data)), $latency);
+            $this->logUsage('ocr', 'gemini', 'gemini-2.5-flash', 'success', 1000 + strlen(json_encode($data)), $latency, null, json_encode($data));
             return response()->json($data);
         } catch (\Exception $e) {
             $latency = (microtime(true) - $startTime) * 1000;
@@ -96,7 +96,7 @@ class AIController extends Controller
         try {
             $data = $this->callGroqParseReceipt($base64Image, $mimeType);
             $latency = (microtime(true) - $startTime) * 1000;
-            $this->logUsage('ocr', 'groq', 'qwen-2.5-32b', 'success', 1000 + strlen(json_encode($data)), $latency);
+            $this->logUsage('ocr', 'groq', 'qwen-2.5-32b', 'success', 1000 + strlen(json_encode($data)), $latency, null, json_encode($data));
             return response()->json($data);
         } catch (\Exception $e) {
             $latency = (microtime(true) - $startTime) * 1000;
@@ -108,7 +108,7 @@ class AIController extends Controller
         try {
             $data = $this->callNvidiaParseReceipt($base64Image, $mimeType);
             $latency = (microtime(true) - $startTime) * 1000;
-            $this->logUsage('ocr', 'nvidia', 'llama-3.2-11b', 'success', 1000 + strlen(json_encode($data)), $latency);
+            $this->logUsage('ocr', 'nvidia', 'llama-3.2-11b', 'success', 1000 + strlen(json_encode($data)), $latency, null, json_encode($data));
             return response()->json($data);
         } catch (\Exception $e) {
             $latency = (microtime(true) - $startTime) * 1000;
@@ -330,6 +330,10 @@ Extract:
    - For 'keluar': {$keluarList}.
    - For 'masuk': {$masukList}.
 If no matching category is found, default to 'Lainnya' for masuk, and 'Harian' for keluar.
+5. 'items': If the spoken text mentions multiple separate item purchases (e.g. \"bensin 30 ribu dan sate 20 ribu\"), extract them into an array of objects where each object contains:
+   - 'nama': The item description or name (string).
+   - 'qty': Quantity purchased (integer, default 1).
+   - 'harga': Total price for this item (integer).
 
 Output must be ONLY a valid JSON object matching the schema. Do not output any markdown formatting like ```json.";
     }
@@ -406,10 +410,11 @@ Output must be ONLY a valid JSON object matching the schema. Do not output any m
             'jenis' => isset($decoded['jenis']) && strtolower($decoded['jenis']) === 'masuk' ? 'masuk' : 'keluar',
             'kategori' => isset($decoded['kategori']) ? (string) $decoded['kategori'] : 'Harian',
             'tanggal' => $tanggalFormatted,
+            'items' => isset($decoded['items']) ? (array) $decoded['items'] : [],
         ];
     }
 
-    private function logUsage($feature, $provider, $modelName, $status, $chars, $latencyMs, $errorMessage = null)
+    private function logUsage($feature, $provider, $modelName, $status, $chars, $latencyMs, $errorMessage = null, $responseContent = null)
     {
         try {
             \App\Models\ApiLog::create([
@@ -421,6 +426,7 @@ Output must be ONLY a valid JSON object matching the schema. Do not output any m
                 'characters_processed' => $chars,
                 'latency_ms' => (int) $latencyMs,
                 'error_message' => $errorMessage,
+                'response_content' => $responseContent,
             ]);
         } catch (\Exception $e) {
             Log::error("Failed to save api log: " . $e->getMessage());

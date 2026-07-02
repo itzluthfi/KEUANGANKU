@@ -101,6 +101,7 @@ class Transaksi {
   final DateTime tanggal;
   final String walletNama;
   final String kategori;
+  final String? itemsJson;
 
   Transaksi({
     this.id,
@@ -111,6 +112,7 @@ class Transaksi {
     required this.tanggal,
     required this.walletNama,
     required this.kategori,
+    this.itemsJson,
   });
 
   factory Transaksi.fromMap(Map<String, dynamic> map) {
@@ -123,6 +125,7 @@ class Transaksi {
       tanggal: DateTime.parse(map['tanggal']),
       walletNama: map['walletNama'] ?? '',
       kategori: map['kategori'] ?? '',
+      itemsJson: map['items_json'],
     );
   }
 
@@ -136,6 +139,7 @@ class Transaksi {
       'tanggal': tanggal.toIso8601String(),
       'walletNama': walletNama,
       'kategori': kategori,
+      'items_json': itemsJson,
     };
   }
 }

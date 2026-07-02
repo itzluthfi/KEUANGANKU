@@ -46,6 +46,7 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
   List<String> _sttHints = [];
   Timer? _sttHintTimer;
   String? _scannedReceiptName;
+  List<dynamic>? _activeItems;
 
   late AnimationController _pulseController;
   final List<Transaksi> _queuedTransactions = [];
@@ -409,6 +410,7 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
           nominal = data['jumlah'].toString();
           keteranganController.text = data['keterangan'];
           jenis = data['jenis'];
+          _activeItems = data['items'];
         });
 
         await _loadCategories();
@@ -509,6 +511,7 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
           tanggal: selectedDate,
           walletNama: selectedWallet!.nama,
           kategori: selectedCategory!.nama,
+          itemsJson: _activeItems != null ? jsonEncode(_activeItems) : null,
         ));
       }
     }
@@ -1165,7 +1168,14 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
             return SafeArea(
               top: false,
               child: Container(
-                padding: const EdgeInsets.all(20),
+                padding: EdgeInsets.only(
+                  left: 20,
+                  right: 20,
+                  top: 20,
+                  bottom: MediaQuery.of(context).padding.bottom > 0
+                      ? MediaQuery.of(context).padding.bottom + 10
+                      : 20,
+                ),
                 child: Column(
                   children: [
                     const Text("Rincian Struk AI", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
@@ -1245,6 +1255,7 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
                                 jenis = data['jenis'] ?? 'keluar';
                                 selectedDate = DateTime.parse(data['tanggal']);
                                 _scannedReceiptName = data['keterangan'];
+                                _activeItems = items;
                                 
                                 selectedCategory = categories.firstWhere(
                                   (c) => c.nama.toLowerCase() == data['kategori'].toString().toLowerCase(),
@@ -1321,6 +1332,7 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
         tanggal: selectedDate,
         walletNama: selectedWallet!.nama,
         kategori: selectedCategory!.nama,
+        itemsJson: _activeItems != null ? jsonEncode(_activeItems) : null,
       ));
     }
 
@@ -1328,6 +1340,7 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
       nominal = "0";
       keteranganController.clear();
       _scannedReceiptName = null;
+      _activeItems = null;
     });
 
     ScaffoldMessenger.of(context).showSnackBar(

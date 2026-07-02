@@ -5,6 +5,9 @@ import 'package:share_plus/share_plus.dart';
 import '../data/app_data.dart';
 import '../widgets/transaksi_item.dart';
 import 'add_transaksi_page.dart';
+import 'transaction_input_page.dart';
+import 'package:intl/intl.dart';
+import 'dart:convert';
 
 class TransaksiPage extends StatefulWidget {
   const TransaksiPage({super.key});
@@ -154,7 +157,7 @@ class _TransaksiPageState extends State<TransaksiPage> {
             return TransaksiItem(
               transaksi: t,
               onTap: () {
-
+                _showTransactionOptions(t);
               },
             );
           },
@@ -197,6 +200,208 @@ class _TransaksiPageState extends State<TransaksiPage> {
           )
         ],
       ),
+    );
+  }
+
+  void _showTransactionOptions(Transaksi t) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 10),
+          Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 20),
+          if (t.itemsJson != null && t.itemsJson!.isNotEmpty)
+            ListTile(
+              leading: const Icon(Icons.receipt_long_rounded, color: Colors.pink),
+              title: const Text("Lihat Rincian Item (Struk)"),
+              onTap: () {
+                Navigator.pop(context);
+                _showReceiptDetailDialog(t);
+              },
+            ),
+          ListTile(
+            leading: const Icon(Icons.edit, color: Colors.blue),
+            title: const Text("Edit Transaksi"),
+            onTap: () async {
+              Navigator.pop(context);
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => TransactionInputPage(
+                    initialJenis: t.jenis.toLowerCase() == 'masuk' ? 'masuk' : 'keluar',
+                    initialTransaksi: t,
+                  ),
+                ),
+              );
+              if (result == true) _loadAllData();
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.delete, color: Colors.red),
+            title: const Text("Hapus Transaksi"),
+            onTap: () {
+              Navigator.pop(context);
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text("Hapus"),
+                  content: const Text("Yakin ingin menghapus transaksi ini?"),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(context), child: const Text("Batal")),
+                    TextButton(
+                      onPressed: () async {
+                        Navigator.pop(context);
+                        await DatabaseHelper.instance.deleteTransaksi(t);
+                        _loadAllData();
+                      },
+                      child: const Text("Hapus", style: TextStyle(color: Colors.red)),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  void _showReceiptDetailDialog(Transaksi t) {
+    if (t.itemsJson == null || t.itemsJson!.isEmpty) return;
+    
+    List<dynamic> items = [];
+    try {
+      items = jsonDecode(t.itemsJson!);
+    } catch (e) {
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+          elevation: 10,
+          backgroundColor: Colors.transparent,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(25),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  height: 12,
+                  decoration: const BoxDecoration(
+                    color: Colors.pink,
+                    borderRadius: BorderRadius.only(topLeft: Radius.circular(25), topRight: Radius.circular(25)),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 15),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.receipt_long_rounded, color: Colors.pink, size: 36),
+                      const SizedBox(height: 10),
+                      Text(
+                        t.keterangan.toUpperCase(),
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 0.8),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "${t.kategori} • ${t.walletNama}",
+                        style: const TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        DateFormat('dd MMMM yyyy, HH:mm').format(t.tanggal),
+                        style: const TextStyle(color: Colors.grey, fontSize: 10),
+                      ),
+                      const SizedBox(height: 15),
+                      const Text(
+                        "- - - - - - - - - - - - - - - - - - - - - - - - - - - - -",
+                        style: TextStyle(color: Colors.grey, fontSize: 12, letterSpacing: 1),
+                        maxLines: 1,
+                      ),
+                      const SizedBox(height: 10),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 250),
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: items.length,
+                          itemBuilder: (context, index) {
+                            final item = items[index];
+                            final String name = item['nama'] ?? 'Item';
+                            final int qty = (item['qty'] ?? 1) as int;
+                            final int harga = (item['harga'] ?? 0) as int;
+                            final int singlePrice = qty > 0 ? (harga / qty).round() : harga;
+                            
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 6),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87)),
+                                        const SizedBox(height: 2),
+                                        Text("$qty x Rp${NumberFormat.decimalPattern('id').format(singlePrice)}", style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                                      ],
+                                    ),
+                                  ),
+                                  Text(
+                                    "Rp${NumberFormat.decimalPattern('id').format(harga)}",
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.redAccent),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      const Text(
+                        "- - - - - - - - - - - - - - - - - - - - - - - - - - - - -",
+                        style: TextStyle(color: Colors.grey, fontSize: 12, letterSpacing: 1),
+                        maxLines: 1,
+                      ),
+                      const SizedBox(height: 15),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text("TOTAL:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87)),
+                          Text(
+                            "Rp${NumberFormat.decimalPattern('id').format(t.jumlah)}",
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.pink),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 25),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.pink,
+                          minimumSize: const Size.fromHeight(45),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                        ),
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text("Tutup", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

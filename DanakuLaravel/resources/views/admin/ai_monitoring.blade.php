@@ -294,6 +294,7 @@
                     <th>Status</th>
                     <th>Latency</th>
                     <th>Pesan Error</th>
+                    <th>Respon AI</th>
                 </tr>
             </thead>
             <tbody>
@@ -308,6 +309,17 @@
                         <td style="color:#C62828; font-family: monospace; font-size: 11px;">
                             {{ $log->error_message ? Str::limit($log->error_message, 45) : '-' }}
                         </td>
+                        <td>
+                            @if($log->response_content)
+                                <span style="cursor: pointer; text-decoration: underline; color: #1E88E5; font-family: monospace; font-size: 11px;" 
+                                      onclick="showResponseModal(this)" 
+                                      data-response="{{ $log->response_content }}">
+                                    {{ Str::limit($log->response_content, 35) }}
+                                </span>
+                            @else
+                                -
+                            @endif
+                        </td>
                     </tr>
                 @endforeach
             </tbody>
@@ -319,4 +331,36 @@
         </div>
     @endif
 </div>
+
+<script>
+function showResponseModal(element) {
+    const rawJson = element.getAttribute('data-response');
+    let formattedJson = rawJson;
+    try {
+        const parsed = JSON.parse(rawJson);
+        formattedJson = JSON.stringify(parsed, null, 4);
+    } catch (e) {
+        // Not JSON
+    }
+    
+    Swal.fire({
+        title: 'Detail Respon AI',
+        html: '<pre style="text-align: left; background: #f4f6f7; padding: 12px; border-radius: 8px; font-size: 11px; overflow-x: auto; max-height: 400px; font-family: monospace; white-space: pre-wrap; word-wrap: break-word;">' + 
+              escapeHtml(formattedJson) + 
+              '</pre>',
+        confirmButtonText: 'Tutup',
+        confirmButtonColor: '#FF528F',
+        width: '600px'
+    });
+}
+
+function escapeHtml(text) {
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+</script>
 @endsection

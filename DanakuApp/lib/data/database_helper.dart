@@ -19,7 +19,7 @@ class DatabaseHelper {
   Future<Database> _initDB(String filePath) async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
-    return await openDatabase(path, version: 3, onCreate: _createDB, onUpgrade: _upgradeDB);
+    return await openDatabase(path, version: 4, onCreate: _createDB, onUpgrade: _upgradeDB);
   }
 
   Future _createDB(Database db, int version) async {
@@ -39,7 +39,8 @@ class DatabaseHelper {
       jenis TEXT,
       tanggal TEXT,
       walletNama TEXT,
-      kategori TEXT
+      kategori TEXT,
+      items_json TEXT
     )
     ''');
 
@@ -144,6 +145,13 @@ class DatabaseHelper {
         isActive INTEGER DEFAULT 1
       )
       ''');
+    }
+    if (oldVersion < 4) {
+      try {
+        await db.execute('ALTER TABLE transaksi ADD COLUMN items_json TEXT');
+      } catch (e) {
+        // Column might already exist
+      }
     }
   }
 
