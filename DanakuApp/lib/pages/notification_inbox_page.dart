@@ -240,7 +240,7 @@ class _NotificationInboxPageState extends State<NotificationInboxPage> {
 
                     return Card(
                       elevation: 0,
-                      margin: const EdgeInsets.bottom(12),
+                      margin: const EdgeInsets.only(bottom: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                         side: BorderSide(
@@ -253,7 +253,7 @@ class _NotificationInboxPageState extends State<NotificationInboxPage> {
                         onTap: () => _showNotificationDetails(item),
                         borderRadius: BorderRadius.circular(20),
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, opacity: 1.0, vertical: 16),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -279,7 +279,7 @@ class _NotificationInboxPageState extends State<NotificationInboxPage> {
                                     Text(
                                       item['title'] ?? '',
                                       style: TextStyle(
-                                        fontWeight: isRead ? FontWeight.w600 : FontWeight.extrabold,
+                                        fontWeight: isRead ? FontWeight.w600 : FontWeight.w800,
                                         fontSize: 14,
                                         color: Colors.black87,
                                       ),
