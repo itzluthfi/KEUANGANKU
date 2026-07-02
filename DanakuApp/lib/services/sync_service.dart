@@ -5,6 +5,7 @@ import 'package:http/http.dart'
     as http; // Ditambahkan sebagai dependensi jika ingin menghubungkan ke Laravel asli
 import '../data/database_helper.dart';
 import '../data/app_data.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 class SyncService {
   static final SyncService instance = SyncService._init();
@@ -14,6 +15,9 @@ class SyncService {
 
   SyncService._init() {
     _startConnectionCheck();
+    Future.delayed(const Duration(seconds: 3), () {
+      uploadFcmToken();
+    });
   }
 
   void _startConnectionCheck() {
@@ -72,6 +76,7 @@ class SyncService {
           final token = responseData['token']; // Asumsi Laravel me-return token
           await DatabaseHelper.instance.saveSetting('logged_in_user', email);
           await DatabaseHelper.instance.saveSetting('auth_token', token);
+          uploadFcmToken(); // Upload token setelah login sukses
           return true;
         }
         return false;
@@ -322,5 +327,36 @@ class SyncService {
       'categories': categoriesRaw,
       'backup_date': DateTime.now().toIso8601String(),
     };
+  }
+
+  /// Mengambil FCM token dan mengunggahnya ke Laravel
+  Future<void> uploadFcmToken() async {
+    try {
+      final token = await DatabaseHelper.instance.getSetting('auth_token');
+      if (token == null) return;
+
+      // 1. Dapatkan Token dari Firebase Messaging
+      final fcmToken = await FirebaseMessaging.instance.getToken();
+      if (fcmToken == null) return;
+      debugPrint("Mendapatkan FCM Token: $fcmToken");
+
+      // 2. Unggah ke Laravel
+      final response = await http.post(
+        Uri.parse('$laravelBaseUrl/save-fcm-token'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'fcm_token': fcmToken}),
+      );
+
+      if (response.statusCode == 200) {
+        debugPrint("FCM Token berhasil diunggah ke server.");
+      } else {
+        debugPrint("Gagal mengunggah FCM Token: ${response.body}");
+      }
+    } catch (e) {
+      debugPrint("Error uploadFcmToken: $e");
+    }
   }
 }

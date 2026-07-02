@@ -7,12 +7,20 @@ import 'pages/main_page.dart';
 import 'services/notification_service.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import 'package:firebase_core/firebase_core.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
     tz.initializeTimeZones();
     await NotificationService.instance.init();
+    try {
+      await Firebase.initializeApp();
+      NotificationService.instance.setupFcmListeners();
+    } catch (e) {
+      debugPrint("Firebase initialization failed: $e");
+    }
   }
   
   if (kIsWeb) {

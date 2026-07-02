@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 class NotificationService {
   static final NotificationService instance = NotificationService._init();
@@ -178,5 +179,53 @@ class NotificationService {
       targetUtc.minute,
       targetUtc.second,
     );
+  }
+
+  void setupFcmListeners() {
+    if (kIsWeb) return;
+    if (!(Platform.isAndroid || Platform.isIOS)) return;
+
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      debugPrint("FCM Message received in foreground: ${message.notification?.title}");
+      final notification = message.notification;
+      if (notification != null) {
+        showCustomLocalNotification(
+          notification.hashCode,
+          notification.title ?? '',
+          notification.body ?? '',
+        );
+      }
+    });
+
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      debugPrint("FCM Message opened app: ${message.data}");
+    });
+  }
+
+  Future<void> showCustomLocalNotification(int id, String title, String body) async {
+    try {
+      await _localNotifications.show(
+        id,
+        title,
+        body,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'fcm_push_channel',
+            'Push Notifications',
+            channelDescription: 'Channel untuk notifikasi dari server',
+            importance: Importance.max,
+            priority: Priority.high,
+            playSound: true,
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint("Error showing custom local notification: $e");
+    }
   }
 }

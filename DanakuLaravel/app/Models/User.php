@@ -25,6 +25,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'fcm_token',
     ];
 
     /**
@@ -53,5 +54,10 @@ class User extends Authenticatable
     public function backup()
     {
         return $this->hasOne(Backup::class);
+    }
+
+    public function notifications()
+    {
+        return $this->hasMany(Notification::class);
     }
 }

@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\API\AuthController;
 use App\Http\Controllers\API\BackupController;
 use App\Http\Controllers\API\AIController;
+use App\Http\Controllers\API\NotificationController;
 
 // Rute Publik (Bisa diakses tanpa login)
 Route::get('/', function () {
@@ -24,4 +25,10 @@ Route::post('/ai/parse-receipt', [AIController::class, 'parseReceipt']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/backup', [BackupController::class, 'backup']);
     Route::get('/restore', [BackupController::class, 'restore']);
+    
+    // Notifikasi & FCM
+    Route::post('/save-fcm-token', [NotificationController::class, 'saveFcmToken']);
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+    Route::post('/notifications/test', [NotificationController::class, 'sendTestNotification']);
 });

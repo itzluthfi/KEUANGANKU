@@ -14,6 +14,7 @@ import 'manage_category_page.dart';
 import 'manage_wallet_page.dart';
 import 'pin_lock_page.dart';
 import 'manage_recurring_page.dart';
+import 'notification_inbox_page.dart';
 
 class SettingPage extends StatefulWidget {
   const SettingPage({super.key});
@@ -861,6 +862,18 @@ class _SettingPageState extends State<SettingPage> {
         backgroundColor: const Color(0xFFFF528F),
         title: const Text("Pengaturan", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_active_outlined, color: Colors.white),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const NotificationInboxPage()),
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: Center(
         child: ConstrainedBox(
