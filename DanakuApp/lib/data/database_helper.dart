@@ -88,7 +88,7 @@ class DatabaseHelper {
     ''');
 
     // Insert default book
-    await db.insert('books', {'nama': 'catatan mada'});
+    await db.insert('books', {'nama': 'Buku Utama'});
 
     // Insert default wallets from AppData (now only contains "Utama")
     for (var w in AppData.wallets) {
@@ -120,7 +120,7 @@ class DatabaseHelper {
       )
       ''');
       // Insert default book
-      await db.insert('books', {'nama': 'catatan mada'});
+      await db.insert('books', {'nama': 'Buku Utama'});
 
       // Add book_id column to existing tables
       await db.execute('ALTER TABLE transaksi ADD COLUMN book_id INTEGER DEFAULT 1');

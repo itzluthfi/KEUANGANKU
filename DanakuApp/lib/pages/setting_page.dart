@@ -425,7 +425,7 @@ class _SettingPageState extends State<SettingPage> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: const Row(
           children: [
-            Icon(Icons.track_changes_rounded, color: Colors.teal),
+            Icon(Icons.track_changes_rounded, color: Colors.pink),
             SizedBox(width: 10),
             Text("Anggaran Bulanan", style: TextStyle(fontWeight: FontWeight.bold)),
           ],
@@ -454,7 +454,7 @@ class _SettingPageState extends State<SettingPage> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.teal,
+              backgroundColor: Colors.pink,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             onPressed: () async {
@@ -467,7 +467,7 @@ class _SettingPageState extends State<SettingPage> {
                   const SnackBar(
                     content: Text("Batas anggaran berhasil diperbarui!"),
                     behavior: SnackBarBehavior.floating,
-                    backgroundColor: Colors.teal,
+                    backgroundColor: Colors.pink,
                   )
                 );
               }
@@ -487,7 +487,7 @@ class _SettingPageState extends State<SettingPage> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: const Row(
           children: [
-            Icon(Icons.notifications_active_rounded, color: Colors.indigo),
+            Icon(Icons.notifications_active_rounded, color: Colors.pink),
             SizedBox(width: 10),
             Text("Pengingat Harian", style: TextStyle(fontWeight: FontWeight.bold)),
           ],
@@ -499,12 +499,12 @@ class _SettingPageState extends State<SettingPage> {
             const SizedBox(height: 24),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              decoration: BoxDecoration(color: Colors.indigo.shade50, borderRadius: BorderRadius.circular(16)),
+              decoration: BoxDecoration(color: Colors.pink.shade50, borderRadius: BorderRadius.circular(16)),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text("Waktu Pengingat:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo)),
-                  Text(_reminderTime, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.indigo)),
+                  const Text("Waktu Pengingat:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.pink)),
+                  Text(_reminderTime, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.pink)),
                 ],
               ),
             ),
@@ -514,8 +514,8 @@ class _SettingPageState extends State<SettingPage> {
               height: 40,
               child: OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.indigo,
-                  side: const BorderSide(color: Colors.indigo),
+                  foregroundColor: Colors.pink,
+                  side: const BorderSide(color: Colors.pink),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 icon: const Icon(Icons.notifications_active_outlined, size: 18),
@@ -537,7 +537,7 @@ class _SettingPageState extends State<SettingPage> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.indigo,
+              backgroundColor: Colors.pink,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             onPressed: () async {
@@ -566,7 +566,7 @@ class _SettingPageState extends State<SettingPage> {
                     SnackBar(
                       content: Text("Pengingat diubah ke pukul $formatted!"),
                       behavior: SnackBarBehavior.floating,
-                      backgroundColor: Colors.indigo,
+                      backgroundColor: Colors.pink,
                     )
                   );
                 }
@@ -859,7 +859,7 @@ class _SettingPageState extends State<SettingPage> {
       backgroundColor: const Color(0xFFF4F7F6),
       appBar: AppBar(
         backgroundColor: const Color(0xFFFF528F),
-        title: const Text("Lebih", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text("Pengaturan", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         elevation: 0,
       ),
       body: Center(
@@ -1106,7 +1106,6 @@ class _SettingPageState extends State<SettingPage> {
     );
   }
 
-  // Widget Kartu Sinkronisasi Awan
   Widget _buildCloudSyncCard(bool isTablet) {
     final bool isOffline = _loggedInEmail == null;
     
@@ -1123,7 +1122,7 @@ class _SettingPageState extends State<SettingPage> {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: (isOffline ? Colors.pink.shade300 : Colors.pink.shade400).withAlpha(80),
+            color: (isOffline ? Colors.pink.shade300 : Colors.pink.shade400).withOpacity(0.3),
             blurRadius: 15,
             offset: const Offset(0, 8),
           )
@@ -1135,7 +1134,7 @@ class _SettingPageState extends State<SettingPage> {
           Positioned(
             right: -30,
             bottom: -30,
-            child: Icon(Icons.cloud_queue, size: 160, color: Colors.white.withAlpha(20)),
+            child: Icon(Icons.cloud_queue, size: 160, color: Colors.white.withOpacity(0.12)),
           ),
           
           Padding(
@@ -1149,7 +1148,7 @@ class _SettingPageState extends State<SettingPage> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: Colors.white.withAlpha(40),
+                        color: Colors.white.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Row(
@@ -1179,17 +1178,78 @@ class _SettingPageState extends State<SettingPage> {
                   ],
                 ),
                 const SizedBox(height: 20),
-                Text(
-                  isOffline ? "Amankan Data Keuangan Anda" : "Data Anda Terlindungi",
-                  style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  isOffline
-                      ? "Masuk/Daftar untuk mengaktifkan fitur pencadangan data otomatis di server Awan Danaku."
-                      : "Akun: $_loggedInEmail",
-                  style: const TextStyle(color: Colors.white70, fontSize: 12, height: 1.4),
-                ),
+                
+                isOffline
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Amankan Data Keuangan Anda",
+                            style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            "Masuk/Daftar untuk mengaktifkan fitur pencadangan data otomatis di server Awan Danaku.",
+                            style: TextStyle(color: Colors.white70, fontSize: 12, height: 1.4),
+                          ),
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 26,
+                            backgroundColor: Colors.white,
+                            child: Text(
+                              _loggedInEmail![0].toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.pink.shade700,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _loggedInEmail!,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: const BoxDecoration(
+                                        color: Colors.greenAccent,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      "Pencadangan Awan Aktif",
+                                      style: TextStyle(
+                                        color: Colors.white.withOpacity(0.9),
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                 const SizedBox(height: 24),
                 
                 // Cloud Sync Buttons Action
@@ -1200,7 +1260,7 @@ class _SettingPageState extends State<SettingPage> {
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
-                            foregroundColor: const Color(0xFF434190),
+                            foregroundColor: Colors.pink.shade700,
                             elevation: 2,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                           ),
@@ -1222,7 +1282,7 @@ class _SettingPageState extends State<SettingPage> {
                               height: 44,
                               child: ElevatedButton(
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.white.withAlpha(50),
+                                  backgroundColor: Colors.white.withOpacity(0.2),
                                   foregroundColor: Colors.white,
                                   elevation: 0,
                                   side: const BorderSide(color: Colors.white, width: 1.5),
@@ -1247,7 +1307,7 @@ class _SettingPageState extends State<SettingPage> {
                               child: ElevatedButton(
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.white,
-                                  foregroundColor: const Color(0xFF1D4ED8),
+                                  foregroundColor: Colors.pink.shade700,
                                   elevation: 1,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                                 ),
@@ -1344,7 +1404,7 @@ class _ExchangeDialogState extends State<_ExchangeDialog> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       title: const Row(
         children: [
-          Icon(Icons.currency_exchange_rounded, color: Colors.amber),
+          Icon(Icons.currency_exchange_rounded, color: Colors.pink),
           SizedBox(width: 10),
           Text("Kurs Mata Uang", style: TextStyle(fontWeight: FontWeight.bold)),
         ],
@@ -1352,7 +1412,7 @@ class _ExchangeDialogState extends State<_ExchangeDialog> {
       content: _loading
           ? const SizedBox(
               height: 150,
-              child: Center(child: CircularProgressIndicator(color: Colors.amber)),
+              child: Center(child: CircularProgressIndicator(color: Colors.pink)),
             )
           : SingleChildScrollView(
               child: Column(
@@ -1385,10 +1445,10 @@ class _ExchangeDialogState extends State<_ExchangeDialog> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       width: double.infinity,
-                      decoration: BoxDecoration(color: Colors.amber.shade50, borderRadius: BorderRadius.circular(12)),
+                      decoration: BoxDecoration(color: Colors.pink.shade50, borderRadius: BorderRadius.circular(12)),
                       child: Text(
                         "= Rp${NumberFormat.decimalPattern('id').format(_convertedResult.round())}",
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.amber),
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.pink),
                       ),
                     ),
                   ]
@@ -1398,7 +1458,7 @@ class _ExchangeDialogState extends State<_ExchangeDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text("Tutup", style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
+          child: const Text("Tutup", style: TextStyle(color: Colors.pink, fontWeight: FontWeight.bold)),
         ),
       ],
     );
