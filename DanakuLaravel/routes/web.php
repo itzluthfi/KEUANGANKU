@@ -1,7 +1,17 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AdminController;
 
-Route::get('/', function () {
-    return view('welcome');
+// 1. Landing Page
+Route::get('/', [AdminController::class, 'index'])->name('landing');
+
+// 2. Authentication Admin
+Route::get('/login', [AdminController::class, 'showLogin'])->name('login');
+Route::post('/login', [AdminController::class, 'login']);
+Route::post('/logout', [AdminController::class, 'logout'])->name('logout');
+
+// 3. Protected Admin Pages
+Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
+    Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('admin.dashboard');
 });

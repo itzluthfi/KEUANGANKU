@@ -47,7 +47,7 @@ class SyncService {
   // true = Menghubungkan secara nyata ke server REST API Laravel Anda di internet
   final bool useRealServer = true;
   // Gunakan 'http://127.0.0.1:8000/api' untuk Windows/Web, atau 'http://10.0.2.2:8000/api' untuk Android Emulator
-  final String laravelBaseUrl = "http://127.0.0.1:8000/api";
+  final String laravelBaseUrl = "https://api-danaku.sir-l.web.id/api";
 
   /// =========================================================================
   /// 🔑 BAGIAN 1: OTENTIKASI & MANAJEMEN AKUN

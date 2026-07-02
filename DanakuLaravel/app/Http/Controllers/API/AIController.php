@@ -27,6 +27,7 @@ class AIController extends Controller
         // Mekanisme Fallback: Gemini -> Groq -> Nvidia
         try {
             $data = $this->callGeminiParseText($text);
+            $this->logUsage('stt', 'gemini', strlen($text) + strlen(json_encode($data)));
             return response()->json($data);
         } catch (\Exception $e) {
             Log::warning("Gemini parseText failed: " . $e->getMessage());
@@ -34,6 +35,7 @@ class AIController extends Controller
 
         try {
             $data = $this->callGroqParseText($text);
+            $this->logUsage('stt', 'groq', strlen($text) + strlen(json_encode($data)));
             return response()->json($data);
         } catch (\Exception $e) {
             Log::warning("Groq parseText failed: " . $e->getMessage());
@@ -41,6 +43,7 @@ class AIController extends Controller
 
         try {
             $data = $this->callNvidiaParseText($text);
+            $this->logUsage('stt', 'nvidia', strlen($text) + strlen(json_encode($data)));
             return response()->json($data);
         } catch (\Exception $e) {
             Log::error("Nvidia parseText failed: " . $e->getMessage());
@@ -67,6 +70,7 @@ class AIController extends Controller
         // Mekanisme Fallback: Gemini -> Groq -> Nvidia
         try {
             $data = $this->callGeminiParseReceipt($base64Image, $mimeType);
+            $this->logUsage('ocr', 'gemini', 1000 + strlen(json_encode($data)));
             return response()->json($data);
         } catch (\Exception $e) {
             Log::warning("Gemini parseReceipt failed: " . $e->getMessage());
@@ -74,6 +78,7 @@ class AIController extends Controller
 
         try {
             $data = $this->callGroqParseReceipt($base64Image, $mimeType);
+            $this->logUsage('ocr', 'groq', 1000 + strlen(json_encode($data)));
             return response()->json($data);
         } catch (\Exception $e) {
             Log::warning("Groq parseReceipt failed: " . $e->getMessage());
@@ -81,6 +86,7 @@ class AIController extends Controller
 
         try {
             $data = $this->callNvidiaParseReceipt($base64Image, $mimeType);
+            $this->logUsage('ocr', 'nvidia', 1000 + strlen(json_encode($data)));
             return response()->json($data);
         } catch (\Exception $e) {
             Log::error("Nvidia parseReceipt failed: " . $e->getMessage());
@@ -372,5 +378,19 @@ Output must be ONLY a valid JSON object matching the schema. Do not output any m
             'kategori' => isset($decoded['kategori']) ? (string) $decoded['kategori'] : 'Harian',
             'tanggal' => $tanggalFormatted,
         ];
+    }
+
+    private function logUsage($feature, $provider, $chars)
+    {
+        try {
+            \App\Models\ApiLog::create([
+                'user_id' => auth('sanctum')->id(),
+                'feature' => $feature,
+                'provider' => $provider,
+                'characters_processed' => $chars,
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Failed to save api log: " . $e->getMessage());
+        }
     }
 }
