@@ -74,38 +74,181 @@ class _SettingPageState extends State<SettingPage> {
     });
   }
 
-  void _resetData(BuildContext context) async {
-    bool? confirm = await showDialog(
+  Future<bool?> _showStyledConfirmDialog({
+    required BuildContext context,
+    required String title,
+    required String message,
+    required String confirmLabel,
+    Color confirmColor = Colors.pink,
+    IconData icon = Icons.info_outline_rounded,
+  }) {
+    return showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.red),
-            SizedBox(width: 10),
-            Text("Reset Data"),
-          ],
-        ),
-        content: const Text(
-          "Apakah Anda yakin ingin menghapus semua transaksi dan mereset saldo dompet ke Utama (0)? Tindakan ini menghapus data di HP Anda secara lokal.",
-          style: TextStyle(height: 1.4),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false), 
-            child: const Text("Batal", style: TextStyle(color: Colors.grey))
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      builder: (context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+          elevation: 10,
+          backgroundColor: Colors.transparent,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(25),
             ),
-            onPressed: () => Navigator.pop(context, true), 
-            child: const Text("Ya, Reset", style: TextStyle(color: Colors.white))
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: confirmColor,
+                    borderRadius: const BorderRadius.only(topLeft: Radius.circular(25), topRight: Radius.circular(25)),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(icon, color: confirmColor, size: 45),
+                      const SizedBox(height: 16),
+                      Text(
+                        title,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        message,
+                        style: const TextStyle(fontSize: 13, height: 1.4, color: Colors.black54),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(color: Colors.grey.shade300),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              ),
+                              onPressed: () => Navigator.pop(context, false),
+                              child: Text("Batal", style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: confirmColor,
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                elevation: 0,
+                              ),
+                              onPressed: () => Navigator.pop(context, true),
+                              child: Text(
+                                confirmLabel,
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-        ],
-      ),
+        );
+      },
     );
+  }
+
+  Future<void> _showStyledInfoDialog({
+    required BuildContext context,
+    required String title,
+    required String message,
+    Color accentColor = Colors.pink,
+    IconData icon = Icons.info_outline_rounded,
+  }) {
+    return showDialog<void>(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+          elevation: 10,
+          backgroundColor: Colors.transparent,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(25),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: accentColor,
+                    borderRadius: const BorderRadius.only(topLeft: Radius.circular(25), topRight: Radius.circular(25)),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(icon, color: accentColor, size: 45),
+                      const SizedBox(height: 16),
+                      Text(
+                        title,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        message,
+                        style: const TextStyle(fontSize: 13, height: 1.4, color: Colors.black54),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: accentColor,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            elevation: 0,
+                          ),
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text(
+                            "Tutup",
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _resetData(BuildContext context) async {
+    bool confirm = await _showStyledConfirmDialog(
+      context: context,
+      title: "Reset Data",
+      message: "Apakah Anda yakin ingin menghapus semua transaksi dan mereset saldo dompet ke Utama (0)? Tindakan ini menghapus data di HP Anda secara lokal.",
+      confirmLabel: "Ya, Reset",
+      confirmColor: Colors.red,
+      icon: Icons.warning_amber_rounded,
+    ) ?? false;
 
     if (confirm == true) {
       await DatabaseHelper.instance.resetData();
@@ -147,28 +290,14 @@ class _SettingPageState extends State<SettingPage> {
   }
 
   void _handleLogout() async {
-    bool? confirm = await showDialog(
+    bool confirm = await _showStyledConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text("Keluar Akun Awan"),
-        content: const Text("Apakah Anda yakin ingin memutuskan sambungan dari Awan Danaku? Data lokal Anda tidak akan terhapus."),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text("Batal", style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red.shade400,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text("Keluar", style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
+      title: "Keluar Akun Awan",
+      message: "Apakah Anda yakin ingin memutuskan sambungan dari Awan Danaku? Data lokal Anda tidak akan terhapus.",
+      confirmLabel: "Keluar",
+      confirmColor: Colors.red.shade400,
+      icon: Icons.logout_rounded,
+    ) ?? false;
 
     if (confirm == true) {
       await SyncService.instance.logout();
@@ -211,37 +340,14 @@ class _SettingPageState extends State<SettingPage> {
   void _triggerRestore() async {
     if (_loggedInEmail == null) return;
 
-    bool? confirm = await showDialog<bool>(
+    bool confirm = await _showStyledConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.cloud_download_outlined, color: Colors.blue),
-            SizedBox(width: 10),
-            Text("Pulihkan Data"),
-          ],
-        ),
-        content: const Text(
-          "Tindakan ini akan menimpa seluruh transaksi & dompet lokal di HP ini dengan data cadangan terbaru Anda di Awan Danaku. Lanjutkan?",
-          style: TextStyle(height: 1.4),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text("Batal", style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text("Ya, Pulihkan", style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
+      title: "Pulihkan Data",
+      message: "Tindakan ini akan menimpa seluruh transaksi & dompet lokal di HP ini dengan data cadangan terbaru Anda di Awan Danaku. Lanjutkan?",
+      confirmLabel: "Ya, Pulihkan",
+      confirmColor: Colors.blue,
+      icon: Icons.cloud_download_outlined,
+    ) ?? false;
 
     if (confirm != true) return;
 
@@ -274,49 +380,88 @@ class _SettingPageState extends State<SettingPage> {
   void _showInboxDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Row(
-          children: [
-            Icon(Icons.mark_email_unread_rounded, color: Colors.pink),
-            SizedBox(width: 10),
-            Text("Kotak Pesan", style: TextStyle(fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView(
-            shrinkWrap: true,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+        elevation: 10,
+        backgroundColor: Colors.transparent,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(25),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              _buildMessageItem(
-                title: "Selamat Datang di Danaku!",
-                body: "Mulai kelola keuangan bulanan Anda dengan mudah. Jangan lupa atur target Anggaran Anda di grid menu!",
-                time: "Baru saja",
-                isNew: true,
+              Container(
+                height: 12,
+                decoration: const BoxDecoration(
+                  color: Colors.pink,
+                  borderRadius: BorderRadius.only(topLeft: Radius.circular(25), topRight: Radius.circular(25)),
+                ),
               ),
-              const Divider(),
-              _buildMessageItem(
-                title: "💡 Tips Keuangan Pekan Ini",
-                body: "Mencatat transaksi kecil seperti parkir atau kopi membantu melacak 15% kebocoran dana bulanan Anda.",
-                time: "1 hari yang lalu",
-                isNew: false,
-              ),
-              const Divider(),
-              _buildMessageItem(
-                title: "☁️ Fitur Awan Aktif",
-                body: "Sekarang Anda dapat mencadangkan seluruh data transaksi ke server Awan Danaku dengan opsional menggunakan Email.",
-                time: "2 hari yang lalu",
-                isNew: false,
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.mark_email_unread_rounded, color: Colors.pink, size: 36),
+                    const SizedBox(height: 10),
+                    const Text(
+                      "Kotak Pesan",
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.maxFinite,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 250),
+                        child: ListView(
+                          shrinkWrap: true,
+                          children: [
+                            _buildMessageItem(
+                              title: "Selamat Datang di Danaku!",
+                              body: "Mulai kelola keuangan bulanan Anda dengan mudah. Jangan lupa atur target Anggaran Anda di grid menu!",
+                              time: "Baru saja",
+                              isNew: true,
+                            ),
+                            const Divider(),
+                            _buildMessageItem(
+                              title: "💡 Tips Keuangan Pekan Ini",
+                              body: "Mencatat transaksi kecil seperti parkir atau kopi membantu melacak 15% kebocoran dana bulanan Anda.",
+                              time: "1 hari yang lalu",
+                              isNew: false,
+                            ),
+                            const Divider(),
+                            _buildMessageItem(
+                              title: "☁️ Fitur Awan Aktif",
+                              body: "Sekarang Anda dapat mencadangkan seluruh data transaksi ke server Awan Danaku dengan opsional menggunakan Email.",
+                              time: "2 hari yang lalu",
+                              isNew: false,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.pink,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          elevation: 0,
+                        ),
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text("Tutup", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Tutup", style: TextStyle(color: Color(0xFFFF528F), fontWeight: FontWeight.bold)),
-          )
-        ],
       ),
     );
   }
@@ -422,60 +567,101 @@ class _SettingPageState extends State<SettingPage> {
     final controller = TextEditingController(text: _monthlyBudget > 0 ? _monthlyBudget.toString() : "");
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Row(
-          children: [
-            Icon(Icons.track_changes_rounded, color: Colors.pink),
-            SizedBox(width: 10),
-            Text("Anggaran Bulanan", style: TextStyle(fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("Atur limit pengeluaran bulanan Anda untuk mendisiplinkan keuangan.", style: TextStyle(color: Colors.grey, fontSize: 12, height: 1.4)),
-            const SizedBox(height: 16),
-            TextField(
-              controller: controller,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                prefixText: "Rp ",
-                labelText: "Limit Bulanan",
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+        elevation: 10,
+        backgroundColor: Colors.transparent,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(25),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                height: 12,
+                decoration: const BoxDecoration(
+                  color: Colors.pink,
+                  borderRadius: BorderRadius.only(topLeft: Radius.circular(25), topRight: Radius.circular(25)),
+                ),
               ),
-            ),
-          ],
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.track_changes_rounded, color: Colors.pink, size: 36),
+                    const SizedBox(height: 10),
+                    const Text(
+                      "Anggaran Bulanan",
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      "Atur limit pengeluaran bulanan Anda untuk mendisiplinkan keuangan.",
+                      style: TextStyle(color: Colors.grey, fontSize: 12, height: 1.4),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 20),
+                    TextField(
+                      controller: controller,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        prefixText: "Rp ",
+                        labelText: "Limit Bulanan",
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(color: Colors.grey.shade300),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            ),
+                            onPressed: () => Navigator.pop(context),
+                            child: Text("Batal", style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.pink,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              elevation: 0,
+                            ),
+                            onPressed: () async {
+                              final newBudget = int.tryParse(controller.text) ?? 0;
+                              await DatabaseHelper.instance.saveSetting('monthly_budget', newBudget.toString());
+                              _loadCustomSettings();
+                              if (context.mounted) Navigator.pop(context);
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("Batas anggaran berhasil diperbarui!"),
+                                    behavior: SnackBarBehavior.floating,
+                                    backgroundColor: Colors.pink,
+                                  )
+                                );
+                              }
+                            },
+                            child: const Text("Simpan", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Batal", style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.pink,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            onPressed: () async {
-              final newBudget = int.tryParse(controller.text) ?? 0;
-              await DatabaseHelper.instance.saveSetting('monthly_budget', newBudget.toString());
-              _loadCustomSettings();
-              if (context.mounted) Navigator.pop(context);
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text("Batas anggaran berhasil diperbarui!"),
-                    behavior: SnackBarBehavior.floating,
-                    backgroundColor: Colors.pink,
-                  )
-                );
-              }
-            },
-            child: const Text("Simpan", style: TextStyle(color: Colors.white)),
-          ),
-        ],
       ),
     );
   }
@@ -484,98 +670,140 @@ class _SettingPageState extends State<SettingPage> {
   void _showReminderDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Row(
-          children: [
-            Icon(Icons.notifications_active_rounded, color: Colors.pink),
-            SizedBox(width: 10),
-            Text("Pengingat Harian", style: TextStyle(fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text("Ingatkan saya setiap hari untuk mencatat pengeluaran agar laporan tetap akurat.", style: TextStyle(color: Colors.grey, fontSize: 12, height: 1.4)),
-            const SizedBox(height: 24),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              decoration: BoxDecoration(color: Colors.pink.shade50, borderRadius: BorderRadius.circular(16)),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text("Waktu Pengingat:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.pink)),
-                  Text(_reminderTime, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.pink)),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              height: 40,
-              child: OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.pink,
-                  side: const BorderSide(color: Colors.pink),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+        elevation: 10,
+        backgroundColor: Colors.transparent,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(25),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                height: 12,
+                decoration: const BoxDecoration(
+                  color: Colors.pink,
+                  borderRadius: BorderRadius.only(topLeft: Radius.circular(25), topRight: Radius.circular(25)),
                 ),
-                icon: const Icon(Icons.notifications_active_outlined, size: 18),
-                label: const Text("Kirim Notifikasi Uji Coba", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                onPressed: () async {
-                  if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
-                    await NotificationService.instance.requestPermissions();
-                    await NotificationService.instance.showInstantNotification();
-                  }
-                },
               ),
-            )
-          ],
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.notifications_active_rounded, color: Colors.pink, size: 36),
+                    const SizedBox(height: 10),
+                    const Text(
+                      "Pengingat Harian",
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      "Ingatkan saya setiap hari untuk mencatat pengeluaran agar laporan tetap akurat.",
+                      style: TextStyle(color: Colors.grey, fontSize: 12, height: 1.4),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 20),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                      decoration: BoxDecoration(color: Colors.pink.shade50, borderRadius: BorderRadius.circular(16)),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text("Waktu Pengingat:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.pink)),
+                          Text(_reminderTime, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.pink)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 40,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.pink,
+                          side: const BorderSide(color: Colors.pink),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        icon: const Icon(Icons.notifications_active_outlined, size: 18),
+                        label: const Text("Kirim Notifikasi Uji Coba", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        onPressed: () async {
+                          if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+                            await NotificationService.instance.requestPermissions();
+                            await NotificationService.instance.showInstantNotification();
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(color: Colors.grey.shade300),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            ),
+                            onPressed: () => Navigator.pop(context),
+                            child: Text("Tutup", style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.pink,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              elevation: 0,
+                            ),
+                            onPressed: () async {
+                              Navigator.pop(context);
+                              final timeParts = _reminderTime.split(":");
+                              final hour = int.tryParse(timeParts[0]) ?? 20;
+                              final minute = int.tryParse(timeParts[1]) ?? 0;
+
+                              final picked = await showTimePicker(
+                                context: context,
+                                initialTime: TimeOfDay(hour: hour, minute: minute),
+                              );
+
+                              if (picked != null) {
+                                final formatted = "${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}";
+                                await DatabaseHelper.instance.saveSetting('reminder_time', formatted);
+                                _loadCustomSettings();
+                                
+                                if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+                                  await NotificationService.instance.requestPermissions();
+                                  await NotificationService.instance.scheduleDailyNotification(picked.hour, picked.minute);
+                                }
+
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text("Pengingat diubah ke pukul $formatted!"),
+                                      behavior: SnackBarBehavior.floating,
+                                      backgroundColor: Colors.pink,
+                                    )
+                                  );
+                                }
+                              }
+                            },
+                            child: const Text("Ubah Jam", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Tutup", style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.pink,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            onPressed: () async {
-              Navigator.pop(context);
-              final timeParts = _reminderTime.split(":");
-              final hour = int.tryParse(timeParts[0]) ?? 20;
-              final minute = int.tryParse(timeParts[1]) ?? 0;
-
-              final picked = await showTimePicker(
-                context: context,
-                initialTime: TimeOfDay(hour: hour, minute: minute),
-              );
-
-              if (picked != null) {
-                final formatted = "${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}";
-                await DatabaseHelper.instance.saveSetting('reminder_time', formatted);
-                _loadCustomSettings();
-                
-                if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
-                  await NotificationService.instance.requestPermissions();
-                  await NotificationService.instance.scheduleDailyNotification(picked.hour, picked.minute);
-                }
-
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text("Pengingat diubah ke pukul $formatted!"),
-                      behavior: SnackBarBehavior.floating,
-                      backgroundColor: Colors.pink,
-                    )
-                  );
-                }
-              }
-            },
-            child: const Text("Ubah Jam", style: TextStyle(color: Colors.white)),
-          ),
-        ],
       ),
     );
   }
