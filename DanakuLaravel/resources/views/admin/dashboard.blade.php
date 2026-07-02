@@ -117,6 +117,32 @@
     </div>
 </div>
 
+<!-- Metrik Finansial Global -->
+<h2 style="margin-top:30px; margin-bottom:15px; font-size:16px; font-weight:700; color:#333;"><i class="fa-solid fa-chart-line" style="color:#FF528F; margin-right:8px;"></i>Metrik Finansial Global (Semua Akun)</h2>
+<div class="stats-grid" style="margin-bottom: 30px;">
+    <div class="stat-card">
+        <div class="stat-info">
+            <h3>Total Perputaran Uang</h3>
+            <p style="font-size: 20px; font-weight: 700; color:#333;">Rp {{ number_format($totalVolume, 0, ',', '.') }}</p>
+        </div>
+        <div class="stat-icon" style="background:#E0F7FA; color:#00838F;"><i class="fa-solid fa-money-bill-transfer"></i></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-info">
+            <h3>Total Pemasukan</h3>
+            <p style="font-size: 20px; font-weight: 700; color:#2E7D32;">Rp {{ number_format($totalIncome, 0, ',', '.') }}</p>
+        </div>
+        <div class="stat-icon" style="background:#E8F5E9; color:#2E7D32;"><i class="fa-solid fa-wallet"></i></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-info">
+            <h3>Total Pengeluaran</h3>
+            <p style="font-size: 20px; font-weight: 700; color:#C62828;">Rp {{ number_format($totalExpense, 0, ',', '.') }}</p>
+        </div>
+        <div class="stat-icon" style="background:#FFEBEE; color:#C62828;"><i class="fa-solid fa-cart-shopping"></i></div>
+    </div>
+</div>
+
 <!-- Grafik Finansial Global -->
 <div class="charts-row">
     <!-- Chart Kategori Paling Populer -->

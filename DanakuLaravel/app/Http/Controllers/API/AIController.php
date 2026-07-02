@@ -330,10 +330,11 @@ Extract:
    - For 'keluar': {$keluarList}.
    - For 'masuk': {$masukList}.
 If no matching category is found, default to 'Lainnya' for masuk, and 'Harian' for keluar.
-5. 'items': If the spoken text mentions multiple separate item purchases (e.g. \"bensin 30 ribu dan sate 20 ribu\"), extract them into an array of objects where each object contains:
+5. 'items': If the spoken text mentions multiple separate item purchases (e.g. \"bensin 30 ribu dan sate 20 ribu\" or \"beli bensin dan sate total 50 ribu\"), extract them into an array of objects where each object contains:
    - 'nama': The item description or name (string).
    - 'qty': Quantity purchased (integer, default 1).
    - 'harga': Total price for this item (integer).
+   * PRICE HANDLING RULE: If the user mentions multiple items but does not specify individual prices (e.g., \"beli bensin dan sate seharga 30 ribu\"), split the total 'jumlah' equally among the items (e.g., bensin 15000, sate 15000). If no prices are mentioned at all, set 'harga' to 0 for each item. The sum of 'harga' of all items must equal 'jumlah'.
 
 Output must be ONLY a valid JSON object matching the schema. Do not output any markdown formatting like ```json.";
     }

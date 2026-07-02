@@ -11,6 +11,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
 import 'dart:ui';
+import '../widgets/custom_snackbar.dart';
 
 class TransactionInputPage extends StatefulWidget {
   final String initialJenis;
@@ -61,6 +62,13 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
       keteranganController.text = t.keterangan;
       selectedDate = t.tanggal;
       selectedWallet = AppData.wallets.firstWhere((w) => w.nama == t.walletNama, orElse: () => AppData.wallets.first);
+      if (t.itemsJson != null && t.itemsJson!.isNotEmpty) {
+        try {
+          _activeItems = jsonDecode(t.itemsJson!);
+        } catch (e) {
+          debugPrint("Error decoding itemsJson in initState: $e");
+        }
+      }
     } else {
       jenis = widget.initialJenis;
       if (AppData.wallets.isNotEmpty) {
@@ -311,15 +319,11 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
       } else {
         final errorMsg = jsonDecode(response.body)['message'] ?? "Gagal memproses struk.";
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error AI: $errorMsg")),
-        );
+        CustomSnackBar.show(context, message: "Error AI: $errorMsg", isError: true);
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Koneksi gagal: $e")),
-      );
+      CustomSnackBar.show(context, message: "Koneksi gagal: $e", isError: true);
     } finally {
       setState(() => _isScanningReceipt = false);
     }
@@ -411,6 +415,7 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
           keteranganController.text = data['keterangan'];
           jenis = data['jenis'];
           _activeItems = data['items'];
+          selectedDate = safeParseDate(data['tanggal']);
         });
 
         await _loadCategories();
@@ -423,20 +428,31 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
         });
 
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Suara diproses: \"$text\"")),
+        CustomSnackBar.show(
+          context,
+          message: "Suara diproses: \"$text\"",
+          isSuccess: true,
         );
+
+        // If voice command contains multiple sub-items, show review bottom sheet
+        if (data['items'] != null && (data['items'] as List).length > 1) {
+          _showReceiptItemsBottomSheet(data);
+        }
       } else {
         final errorMsg = jsonDecode(response.body)['message'] ?? "Gagal memproses suara.";
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error AI: $errorMsg")),
+        CustomSnackBar.show(
+          context,
+          message: "Error AI: $errorMsg",
+          isError: true,
         );
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Koneksi gagal: $e")),
+      CustomSnackBar.show(
+        context,
+        message: "Koneksi gagal: $e",
+        isError: true,
       );
     } finally {
       setState(() => _isProcessingVoice = false);
@@ -467,57 +483,118 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
     });
   }
 
+  DateTime safeParseDate(String? dateStr) {
+    if (dateStr == null || dateStr.trim().isEmpty) {
+      return DateTime.now();
+    }
+    try {
+      return DateTime.parse(dateStr);
+    } catch (_) {
+      try {
+        final clean = dateStr.trim();
+        final parts = clean.split('-');
+        if (parts.length == 3) {
+          final year = int.parse(parts[0]);
+          final month = int.parse(parts[1]);
+          final day = int.parse(parts[2]);
+          return DateTime(year, month, day);
+        }
+      } catch (_) {}
+      return DateTime.now();
+    }
+  }
+
   Future<void> _saveTransaction() async {
     double? parsedAmount = double.tryParse(nominal);
     double baseAmount = parsedAmount ?? 0;
     int currentJumlah = selectedCurrency == "USD" ? (baseAmount * usdToIdr).toInt() : baseAmount.toInt();
 
-    if (currentJumlah > 0) {
-      if (jenis == 'transfer') {
-        if (selectedWalletTujuan == null || selectedWallet == null) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Pilih dompet asal dan tujuan")));
-          return;
-        }
-        if (selectedWallet!.nama == selectedWalletTujuan!.nama) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Dompet asal dan tujuan tidak boleh sama")));
-          return;
-        }
-        
-        _queuedTransactions.add(Transaksi(
-          keterangan: keteranganController.text.isEmpty ? "Transfer ke ${selectedWalletTujuan!.nama}" : keteranganController.text,
-          jumlah: currentJumlah,
-          jenis: "keluar",
-          tanggal: selectedDate,
-          walletNama: selectedWallet!.nama,
-          kategori: "Transfer",
-        ));
-        _queuedTransactions.add(Transaksi(
-          keterangan: keteranganController.text.isEmpty ? "Transfer dari ${selectedWallet!.nama}" : keteranganController.text,
-          jumlah: currentJumlah,
-          jenis: "masuk",
-          tanggal: selectedDate,
-          walletNama: selectedWalletTujuan!.nama,
-          kategori: "Transfer",
-        ));
-      } else {
-        if (selectedCategory == null || selectedWallet == null) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Lengkapi kategori dan dompet")));
-          return;
-        }
-        _queuedTransactions.add(Transaksi(
-          keterangan: keteranganController.text.isEmpty ? selectedCategory!.nama : keteranganController.text,
-          jumlah: currentJumlah,
-          jenis: jenis,
-          tanggal: selectedDate,
-          walletNama: selectedWallet!.nama,
-          kategori: selectedCategory!.nama,
-          itemsJson: _activeItems != null ? jsonEncode(_activeItems) : null,
-        ));
+    if (currentJumlah <= 0) {
+      CustomSnackBar.show(context, message: "Nominal harus lebih dari 0", isError: true);
+      return;
+    }
+
+    if (widget.initialTransaksi != null) {
+      // MODE EDIT
+      if (jenis != 'transfer' && selectedCategory == null) {
+        CustomSnackBar.show(context, message: "Pilih kategori terlebih dahulu", isError: true);
+        return;
       }
+      if (selectedWallet == null) {
+        CustomSnackBar.show(context, message: "Pilih dompet terlebih dahulu", isError: true);
+        return;
+      }
+
+      final updated = Transaksi(
+        id: widget.initialTransaksi!.id,
+        keterangan: keteranganController.text.isEmpty ? selectedCategory!.nama : keteranganController.text,
+        jumlah: currentJumlah,
+        jenis: jenis,
+        tanggal: selectedDate,
+        walletNama: selectedWallet!.nama,
+        kategori: selectedCategory!.nama,
+        itemsJson: _activeItems != null ? jsonEncode(_activeItems) : null,
+      );
+
+      try {
+        await DatabaseHelper.instance.updateTransaksi(widget.initialTransaksi!, updated);
+        if (mounted) {
+          CustomSnackBar.show(context, message: "Transaksi berhasil diperbarui!", isSuccess: true);
+          Navigator.pop(context, true);
+        }
+      } catch (e) {
+        if (mounted) {
+          CustomSnackBar.show(context, message: "Gagal memperbarui transaksi: $e", isError: true);
+        }
+      }
+      return;
+    }
+
+    // MODE INPUT BARU
+    if (jenis == 'transfer') {
+      if (selectedWalletTujuan == null || selectedWallet == null) {
+        CustomSnackBar.show(context, message: "Pilih dompet asal dan tujuan", isError: true);
+        return;
+      }
+      if (selectedWallet!.nama == selectedWalletTujuan!.nama) {
+        CustomSnackBar.show(context, message: "Dompet asal dan tujuan tidak boleh sama", isError: true);
+        return;
+      }
+      
+      _queuedTransactions.add(Transaksi(
+        keterangan: keteranganController.text.isEmpty ? "Transfer ke ${selectedWalletTujuan!.nama}" : keteranganController.text,
+        jumlah: currentJumlah,
+        jenis: "keluar",
+        tanggal: selectedDate,
+        walletNama: selectedWallet!.nama,
+        kategori: "Transfer",
+      ));
+      _queuedTransactions.add(Transaksi(
+        keterangan: keteranganController.text.isEmpty ? "Transfer dari ${selectedWallet!.nama}" : keteranganController.text,
+        jumlah: currentJumlah,
+        jenis: "masuk",
+        tanggal: selectedDate,
+        walletNama: selectedWalletTujuan!.nama,
+        kategori: "Transfer",
+      ));
+    } else {
+      if (selectedCategory == null || selectedWallet == null) {
+        CustomSnackBar.show(context, message: "Lengkapi kategori dan dompet", isError: true);
+        return;
+      }
+      _queuedTransactions.add(Transaksi(
+        keterangan: keteranganController.text.isEmpty ? selectedCategory!.nama : keteranganController.text,
+        jumlah: currentJumlah,
+        jenis: jenis,
+        tanggal: selectedDate,
+        walletNama: selectedWallet!.nama,
+        kategori: selectedCategory!.nama,
+        itemsJson: _activeItems != null ? jsonEncode(_activeItems) : null,
+      ));
     }
 
     if (_queuedTransactions.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Antrean kosong, isi nominal terlebih dahulu")));
+      CustomSnackBar.show(context, message: "Antrean kosong, isi nominal terlebih dahulu", isError: true);
       return;
     }
 
@@ -598,13 +675,21 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
       }
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("${_queuedTransactions.length} transaksi berhasil disimpan!")),
+        CustomSnackBar.show(
+          context,
+          message: "${_queuedTransactions.length} transaksi berhasil disimpan!",
+          isSuccess: true,
         );
         Navigator.pop(context, true);
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Gagal menyimpan ke database!")));
+      if (mounted) {
+        CustomSnackBar.show(
+          context,
+          message: "Gagal menyimpan ke database: $e",
+          isError: true,
+        );
+      }
     }
   }
 
@@ -1223,7 +1308,7 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
                                   keterangan: "${item['nama']} (${data['keterangan']})",
                                   jumlah: (item['harga'] as num).toInt(),
                                   jenis: "keluar",
-                                  tanggal: DateTime.parse(data['tanggal'] ?? DateTime.now().toString()),
+                                  tanggal: safeParseDate(data['tanggal']),
                                   walletNama: selectedWallet?.nama ?? AppData.wallets.first.nama,
                                   kategori: item['kategori'] ?? data['kategori'] ?? 'Harian',
                                 ));
@@ -1233,8 +1318,10 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
                                 keteranganController.clear();
                               });
                               Navigator.pop(context);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text("${items.length} item struk berhasil dimasukkan ke antrean!")),
+                              CustomSnackBar.show(
+                                context,
+                                message: "${items.length} item struk berhasil dimasukkan ke antrean!",
+                                isSuccess: true,
                               );
                             },
                             child: const Text("Pecah Transaksi", style: TextStyle(color: Colors.pink, fontWeight: FontWeight.bold)),
@@ -1248,21 +1335,27 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               minimumSize: const Size.fromHeight(48),
                             ),
-                            onPressed: () {
+                            onPressed: () async {
                               setState(() {
                                 nominal = data['jumlah'].toString();
                                 keteranganController.text = data['keterangan'];
                                 jenis = data['jenis'] ?? 'keluar';
-                                selectedDate = DateTime.parse(data['tanggal']);
+                                selectedDate = safeParseDate(data['tanggal']);
                                 _scannedReceiptName = data['keterangan'];
                                 _activeItems = items;
-                                
+                              });
+
+                              // Load categories for the new jenis
+                              await _loadCategories();
+
+                              setState(() {
                                 selectedCategory = categories.firstWhere(
                                   (c) => c.nama.toLowerCase() == data['kategori'].toString().toLowerCase(),
                                   orElse: () => categories.isNotEmpty ? categories.first : categories.first,
                                 );
                               });
-                              Navigator.pop(context);
+                              
+                              if (mounted) Navigator.pop(context);
                             },
                             child: const Text("Gabungkan Semua", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                           ),

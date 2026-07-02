@@ -1079,65 +1079,169 @@ class HomePageState extends State<HomePage> {
   void _showTransactionOptions(Transaksi t) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: 10),
-          Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
-          const SizedBox(height: 20),
-          if (t.itemsJson != null && t.itemsJson!.isNotEmpty)
-            ListTile(
-              leading: const Icon(Icons.receipt_long_rounded, color: Colors.pink),
-              title: const Text("Lihat Rincian Item (Struk)"),
-              onTap: () {
-                Navigator.pop(context);
-                _showReceiptDetailDialog(t);
-              },
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: 24,
+              right: 24,
+              top: 16,
+              bottom: MediaQuery.of(context).padding.bottom + 16,
             ),
-          ListTile(
-            leading: const Icon(Icons.edit, color: Colors.blue),
-            title: const Text("Edit Transaksi"),
-            onTap: () async {
-              Navigator.pop(context);
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => TransactionInputPage(
-                    initialJenis: t.jenis.toLowerCase() == 'masuk' ? 'masuk' : 'keluar',
-                    initialTransaksi: t,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Handle bar
+                Container(
+                  width: 40,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-              );
-              if (result == true) loadData();
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.delete, color: Colors.red),
-            title: const Text("Hapus Transaksi"),
-            onTap: () {
-              Navigator.pop(context);
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text("Hapus"),
-                  content: const Text("Yakin ingin menghapus transaksi ini?"),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.pop(context), child: const Text("Batal")),
-                    TextButton(
-                      onPressed: () async {
-                        Navigator.pop(context);
-                        await DatabaseHelper.instance.deleteTransaksi(t);
-                        loadData();
-                      },
-                      child: const Text("Hapus", style: TextStyle(color: Colors.red)),
-                    ),
-                  ],
+                const SizedBox(height: 24),
+                
+                if (t.itemsJson != null && t.itemsJson!.isNotEmpty) ...[
+                  _buildModernOptionTile(
+                    icon: Icons.receipt_long_rounded,
+                    iconColor: Colors.pink,
+                    title: "Lihat Rincian Item (Struk)",
+                    subtitle: "Lihat rincian barang belanjaan detail",
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showReceiptDetailDialog(t);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                _buildModernOptionTile(
+                  icon: Icons.edit_rounded,
+                  iconColor: Colors.blue,
+                  title: "Edit Transaksi",
+                  subtitle: "Ubah nominal, dompet, kategori, dll.",
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => TransactionInputPage(
+                          initialJenis: t.jenis.toLowerCase() == 'masuk' ? 'masuk' : 'keluar',
+                          initialTransaksi: t,
+                        ),
+                      ),
+                    );
+                    if (result == true) loadData();
+                  },
                 ),
-              );
-            },
+                const SizedBox(height: 12),
+                _buildModernOptionTile(
+                  icon: Icons.delete_forever_rounded,
+                  iconColor: Colors.red,
+                  title: "Hapus Transaksi",
+                  subtitle: "Hapus transaksi ini secara permanen",
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showDeleteConfirmDialog(t);
+                  },
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 20),
+        );
+      },
+    );
+  }
+
+  Widget _buildModernOptionTile({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade100),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: iconColor.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: iconColor, size: 22),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle,
+                    style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, color: Colors.grey.shade400, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showDeleteConfirmDialog(Transaksi t) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red),
+            SizedBox(width: 10),
+            Text("Hapus Transaksi", style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: const Text(
+          "Apakah Anda yakin ingin menghapus transaksi ini? Tindakan ini akan mengembalikan dampak saldo pada dompet terkait.",
+          style: TextStyle(height: 1.4, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context), 
+            child: const Text("Batal", style: TextStyle(color: Colors.grey))
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () async {
+              Navigator.pop(context);
+              await DatabaseHelper.instance.deleteTransaksi(t);
+              loadData();
+            }, 
+            child: const Text("Ya, Hapus", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
+          ),
         ],
       ),
     );

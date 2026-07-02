@@ -52,6 +52,8 @@ class AdminController extends Controller
         
         // 1. Hitung total transaksi global dan kategori terpopuler
         $totalTransactions = 0;
+        $totalIncome = 0;
+        $totalExpense = 0;
         $categoryCounts = [];
         $walletCounts = [];
         
@@ -61,6 +63,15 @@ class AdminController extends Controller
             if (isset($payload['transaksi'])) {
                 $totalTransactions += count($payload['transaksi']);
                 foreach ($payload['transaksi'] as $t) {
+                    $jumlah = (int) ($t['jumlah'] ?? 0);
+                    $jenis = strtolower($t['jenis'] ?? 'keluar');
+                    
+                    if ($jenis === 'masuk' || $jenis === 'pemasukan') {
+                        $totalIncome += $jumlah;
+                    } else {
+                        $totalExpense += $jumlah;
+                    }
+
                     $cat = $t['kategori'] ?? 'Lain-lain';
                     $categoryCounts[$cat] = ($categoryCounts[$cat] ?? 0) + 1;
                     
@@ -69,6 +80,7 @@ class AdminController extends Controller
                 }
             }
         }
+        $totalVolume = $totalIncome + $totalExpense;
 
         // Urutkan kategori terpopuler
         arsort($categoryCounts);
@@ -95,6 +107,9 @@ class AdminController extends Controller
             'totalUsers',
             'totalBackups',
             'totalTransactions',
+            'totalIncome',
+            'totalExpense',
+            'totalVolume',
             'totalApiRequests',
             'apiRequestsToday',
             'categoryLabels',
