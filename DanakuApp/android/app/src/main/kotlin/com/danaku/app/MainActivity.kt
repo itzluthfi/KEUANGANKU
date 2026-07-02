@@ -1,4 +1,4 @@
-package com.example.app_petama
+package com.danaku.app
 
 import io.flutter.embedding.android.FlutterActivity
 
