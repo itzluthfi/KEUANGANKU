@@ -11,7 +11,11 @@ class ApiLog extends Model
         'user_id',
         'feature',
         'provider',
+        'model_name',
+        'status',
         'characters_processed',
+        'latency_ms',
+        'error_message',
     ];
 
     public function user(): BelongsTo

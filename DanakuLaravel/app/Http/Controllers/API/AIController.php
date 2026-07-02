@@ -23,29 +23,41 @@ class AIController extends Controller
         ]);
 
         $text = $request->text;
+        $startTime = microtime(true);
 
         // Mekanisme Fallback: Gemini -> Groq -> Nvidia
         try {
             $data = $this->callGeminiParseText($text);
-            $this->logUsage('stt', 'gemini', strlen($text) + strlen(json_encode($data)));
+            $latency = (microtime(true) - $startTime) * 1000;
+            $this->logUsage('stt', 'gemini', 'gemini-2.5-flash', 'success', strlen($text) + strlen(json_encode($data)), $latency);
             return response()->json($data);
         } catch (\Exception $e) {
+            $latency = (microtime(true) - $startTime) * 1000;
+            $this->logUsage('stt', 'gemini', 'gemini-2.5-flash', 'failed', strlen($text), $latency, $e->getMessage());
             Log::warning("Gemini parseText failed: " . $e->getMessage());
         }
 
+        $startTime = microtime(true);
         try {
             $data = $this->callGroqParseText($text);
-            $this->logUsage('stt', 'groq', strlen($text) + strlen(json_encode($data)));
+            $latency = (microtime(true) - $startTime) * 1000;
+            $this->logUsage('stt', 'groq', 'qwen-2.5-32b', 'success', strlen($text) + strlen(json_encode($data)), $latency);
             return response()->json($data);
         } catch (\Exception $e) {
+            $latency = (microtime(true) - $startTime) * 1000;
+            $this->logUsage('stt', 'groq', 'qwen-2.5-32b', 'failed', strlen($text), $latency, $e->getMessage());
             Log::warning("Groq parseText failed: " . $e->getMessage());
         }
 
+        $startTime = microtime(true);
         try {
             $data = $this->callNvidiaParseText($text);
-            $this->logUsage('stt', 'nvidia', strlen($text) + strlen(json_encode($data)));
+            $latency = (microtime(true) - $startTime) * 1000;
+            $this->logUsage('stt', 'nvidia', 'llama-3.2-11b', 'success', strlen($text) + strlen(json_encode($data)), $latency);
             return response()->json($data);
         } catch (\Exception $e) {
+            $latency = (microtime(true) - $startTime) * 1000;
+            $this->logUsage('stt', 'nvidia', 'llama-3.2-11b', 'failed', strlen($text), $latency, $e->getMessage());
             Log::error("Nvidia parseText failed: " . $e->getMessage());
             return response()->json([
                 'message' => 'Seluruh layanan AI gagal memproses teks.',
@@ -66,29 +78,41 @@ class AIController extends Controller
         $imageFile = $request->file('image');
         $base64Image = base64_encode(file_get_contents($imageFile->getPathname()));
         $mimeType = $imageFile->getMimeType();
+        $startTime = microtime(true);
 
         // Mekanisme Fallback: Gemini -> Groq -> Nvidia
         try {
             $data = $this->callGeminiParseReceipt($base64Image, $mimeType);
-            $this->logUsage('ocr', 'gemini', 1000 + strlen(json_encode($data)));
+            $latency = (microtime(true) - $startTime) * 1000;
+            $this->logUsage('ocr', 'gemini', 'gemini-2.5-flash', 'success', 1000 + strlen(json_encode($data)), $latency);
             return response()->json($data);
         } catch (\Exception $e) {
+            $latency = (microtime(true) - $startTime) * 1000;
+            $this->logUsage('ocr', 'gemini', 'gemini-2.5-flash', 'failed', 1000, $latency, $e->getMessage());
             Log::warning("Gemini parseReceipt failed: " . $e->getMessage());
         }
 
+        $startTime = microtime(true);
         try {
             $data = $this->callGroqParseReceipt($base64Image, $mimeType);
-            $this->logUsage('ocr', 'groq', 1000 + strlen(json_encode($data)));
+            $latency = (microtime(true) - $startTime) * 1000;
+            $this->logUsage('ocr', 'groq', 'qwen-2.5-32b', 'success', 1000 + strlen(json_encode($data)), $latency);
             return response()->json($data);
         } catch (\Exception $e) {
+            $latency = (microtime(true) - $startTime) * 1000;
+            $this->logUsage('ocr', 'groq', 'qwen-2.5-32b', 'failed', 1000, $latency, $e->getMessage());
             Log::warning("Groq parseReceipt failed: " . $e->getMessage());
         }
 
+        $startTime = microtime(true);
         try {
             $data = $this->callNvidiaParseReceipt($base64Image, $mimeType);
-            $this->logUsage('ocr', 'nvidia', 1000 + strlen(json_encode($data)));
+            $latency = (microtime(true) - $startTime) * 1000;
+            $this->logUsage('ocr', 'nvidia', 'llama-3.2-11b', 'success', 1000 + strlen(json_encode($data)), $latency);
             return response()->json($data);
         } catch (\Exception $e) {
+            $latency = (microtime(true) - $startTime) * 1000;
+            $this->logUsage('ocr', 'nvidia', 'llama-3.2-11b', 'failed', 1000, $latency, $e->getMessage());
             Log::error("Nvidia parseReceipt failed: " . $e->getMessage());
             return response()->json([
                 'message' => 'Seluruh layanan AI gagal menganalisis struk belanja.',
@@ -380,14 +404,18 @@ Output must be ONLY a valid JSON object matching the schema. Do not output any m
         ];
     }
 
-    private function logUsage($feature, $provider, $chars)
+    private function logUsage($feature, $provider, $modelName, $status, $chars, $latencyMs, $errorMessage = null)
     {
         try {
             \App\Models\ApiLog::create([
                 'user_id' => auth('sanctum')->id(),
                 'feature' => $feature,
                 'provider' => $provider,
+                'model_name' => $modelName,
+                'status' => $status,
                 'characters_processed' => $chars,
+                'latency_ms' => (int) $latencyMs,
+                'error_message' => $errorMessage,
             ]);
         } catch (\Exception $e) {
             Log::error("Failed to save api log: " . $e->getMessage());

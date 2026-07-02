@@ -14,4 +14,7 @@ Route::post('/logout', [AdminController::class, 'logout'])->name('logout');
 // 3. Protected Admin Pages
 Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
     Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('admin.dashboard');
+    Route::get('/ai-monitoring', [AdminController::class, 'aiMonitoring'])->name('admin.ai-monitoring');
+    Route::get('/users', [AdminController::class, 'users'])->name('admin.users');
+    Route::delete('/users/{id}', [AdminController::class, 'deleteUser'])->name('admin.users.delete');
 });
