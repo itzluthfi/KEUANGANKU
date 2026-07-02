@@ -35,7 +35,7 @@ class SyncService {
 
   Future<bool> checkConnection() async {
     try {
-      final response = await http.get(Uri.parse(laravelBaseUrl)).timeout(const Duration(seconds: 2));
+      await http.get(Uri.parse(laravelBaseUrl)).timeout(const Duration(seconds: 2));
       return true;
     } catch (_) {
       return false;

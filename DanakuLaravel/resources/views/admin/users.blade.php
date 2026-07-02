@@ -99,7 +99,10 @@
                         <td><span style="font-weight:bold; color:#FF528F;">{{ $user['transactions'] }}</span> transaksi</td>
                         <td>{{ $user['backup_size'] }}</td>
                         <td>{{ $user['last_sync'] }}</td>
-                        <td style="text-align: right;">
+                        <td style="text-align: right; display: flex; gap: 8px; justify-content: flex-end;">
+                            <a href="{{ route('admin.users.transactions', $user['id']) }}" style="background:#E3F2FD; color:#1976D2; border:1px solid #BBDEFB; padding: 8px 14px; border-radius: 10px; font-size:11px; font-weight:800; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
+                                <i class="fa-solid fa-receipt"></i> Detail Transaksi
+                            </a>
                             <form id="deleteForm-{{ $user['id'] }}" action="{{ route('admin.users.delete', $user['id']) }}" method="POST" style="display:none;">
                                 @csrf
                                 @method('DELETE')

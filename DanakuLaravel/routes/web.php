@@ -16,5 +16,6 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
     Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('admin.dashboard');
     Route::get('/ai-monitoring', [AdminController::class, 'aiMonitoring'])->name('admin.ai-monitoring');
     Route::get('/users', [AdminController::class, 'users'])->name('admin.users');
+    Route::get('/users/{id}/transactions', [AdminController::class, 'userTransactions'])->name('admin.users.transactions');
     Route::delete('/users/{id}', [AdminController::class, 'deleteUser'])->name('admin.users.delete');
 });

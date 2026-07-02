@@ -210,6 +210,55 @@ class AdminController extends Controller
         return view('admin.users', compact('users', 'usersList'));
     }
 
+    public function userTransactions($id)
+    {
+        $user = User::findOrFail($id);
+        $backup = Backup::where('user_id', $id)->first();
+        
+        $transactions = [];
+        $totalIncome = 0;
+        $totalExpense = 0;
+        $categoryData = [];
+
+        if ($backup) {
+            $payload = json_decode($backup->data, true);
+            if (isset($payload['transaksi'])) {
+                $transactions = $payload['transaksi'];
+                
+                // Urutkan berdasarkan tanggal terbaru
+                usort($transactions, function ($a, $b) {
+                    return strcmp($b['tanggal'] ?? '', $a['tanggal'] ?? '');
+                });
+
+                foreach ($transactions as $t) {
+                    $jumlah = (int) ($t['jumlah'] ?? 0);
+                    $jenis = strtolower($t['jenis'] ?? 'keluar');
+                    $kategori = $t['kategori'] ?? 'Lain-lain';
+
+                    if ($jenis === 'masuk') {
+                        $totalIncome += $jumlah;
+                    } else {
+                        $totalExpense += $jumlah;
+                        $categoryData[$kategori] = ($categoryData[$kategori] ?? 0) + $jumlah;
+                    }
+                }
+            }
+        }
+
+        arsort($categoryData);
+        $categoryLabels = array_keys($categoryData);
+        $categoryValues = array_values($categoryData);
+
+        return view('admin.user_transactions', compact(
+            'user',
+            'transactions',
+            'totalIncome',
+            'totalExpense',
+            'categoryLabels',
+            'categoryValues'
+        ));
+    }
+
     public function deleteUser($id)
     {
         $user = User::findOrFail($id);

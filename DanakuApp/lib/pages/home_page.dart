@@ -233,6 +233,7 @@ class HomePageState extends State<HomePage> {
 
   void _showSwitchBookDialog() async {
     final books = await DatabaseHelper.instance.fetchBooks();
+    if (!mounted) return;
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
@@ -290,6 +291,7 @@ class HomePageState extends State<HomePage> {
                 await DatabaseHelper.instance.saveWallets([
                   Wallet(nama: "Utama", saldo: 0, jenis: "Akun Virtual", icon: Icons.account_balance_wallet)
                 ]);
+                if (!mounted) return;
                 loadData();
                 Navigator.pop(context);
               }
