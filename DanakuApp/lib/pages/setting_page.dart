@@ -1003,7 +1003,7 @@ class _SettingPageState extends State<SettingPage> {
                   trailing: const Icon(Icons.chevron_right, color: Colors.grey),
                 ),
               ),
-              const SizedBox(height: 50),
+              const SizedBox(height: 100),
             ],
           ),
         ),

@@ -344,6 +344,11 @@ Output must be ONLY a valid JSON object matching the schema. Do not output any m
 3. 'kategori': Choose ONE category matching best from this list: {$keluarList}. Default to 'Harian' if none match.
 4. 'tanggal': Receipt transaction date in 'YYYY-MM-DD' format. If not found, use today's date (" . date('Y-m-d') . ").
 5. 'jenis': Always set to 'keluar'.
+6. 'items': An array of objects, where each object represents an item on the receipt and contains:
+   - 'nama': The item description or name (string).
+   - 'qty': Quantity purchased (integer, default 1 if not readable).
+   - 'harga': Total price for this item (integer, i.e. qty * unit_price).
+   - 'kategori': Choose ONE category from this list matching the item best: {$keluarList}. Default to 'Harian'.
 
 Output must be ONLY a valid JSON object matching the schema. Do not output any markdown formatting like ```json.";
     }

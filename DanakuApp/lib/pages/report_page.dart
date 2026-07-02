@@ -210,6 +210,7 @@ class _ReportPageState extends State<ReportPage> {
                       _buildSubToggle(),
                       const SizedBox(height: 20),
                       _buildMainContent(screenSize),
+                      const SizedBox(height: 100),
                     ],
                   ),
                 ),

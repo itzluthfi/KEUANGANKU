@@ -82,7 +82,8 @@ class _MainPageState extends State<MainPage> {
     return Scaffold(
       body: _getPage(currentIndex),
       floatingActionButton: currentIndex == 0 ? FloatingActionButton(
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFFFF528F),
+        elevation: 6,
         onPressed: () async {
           await Navigator.push(
             context,
@@ -92,24 +93,70 @@ class _MainPageState extends State<MainPage> {
           );
           _homeKey.currentState?.loadData();
         },
-        child: const Icon(Icons.add, color: Colors.pink),
+        child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
       ) : null,
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: currentIndex,
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: Colors.blueAccent,
-        unselectedItemColor: Colors.grey,
-        onTap: (index) {
-          setState(() {
-            currentIndex = index;
-          });
-        },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-          BottomNavigationBarItem(icon: Icon(Icons.account_balance_wallet), label: "Wallet"),
-          BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: "Report"),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: "Setting"),
-        ],
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 15,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          top: false,
+          child: BottomNavigationBar(
+            currentIndex: currentIndex,
+            type: BottomNavigationBarType.fixed,
+            backgroundColor: Colors.white,
+            selectedItemColor: const Color(0xFFFF528F),
+            unselectedItemColor: Colors.grey.shade400,
+            selectedLabelStyle: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+            unselectedLabelStyle: const TextStyle(
+              fontSize: 11,
+            ),
+            onTap: (index) {
+              setState(() {
+                currentIndex = index;
+              });
+            },
+            items: const [
+              BottomNavigationBarItem(
+                icon: Padding(
+                  padding: EdgeInsets.only(bottom: 4),
+                  child: Icon(Icons.home_rounded),
+                ),
+                label: "Beranda",
+              ),
+              BottomNavigationBarItem(
+                icon: Padding(
+                  padding: EdgeInsets.only(bottom: 4),
+                  child: Icon(Icons.account_balance_wallet_rounded),
+                ),
+                label: "Dompet",
+              ),
+              BottomNavigationBarItem(
+                icon: Padding(
+                  padding: EdgeInsets.only(bottom: 4),
+                  child: Icon(Icons.bar_chart_rounded),
+                ),
+                label: "Laporan",
+              ),
+              BottomNavigationBarItem(
+                icon: Padding(
+                  padding: EdgeInsets.only(bottom: 4),
+                  child: Icon(Icons.settings_rounded),
+                ),
+                label: "Pengaturan",
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
