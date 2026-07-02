@@ -209,7 +209,22 @@
                                 @endphp
                                 <tr class="ledger-row" data-jenis="{{ $jenis }}" data-kategori="{{ $t['kategori'] ?? '' }}">
                                     <td>{{ $t['tanggal'] ?? '-' }}</td>
-                                    <td><strong class="ledger-desc">{{ $t['keterangan'] ?? '-' }}</strong></td>
+                                    <td>
+                                        <strong class="ledger-desc">{{ $t['keterangan'] ?? '-' }}</strong>
+                                        @if(isset($t['items_json']) && !empty($t['items_json']) && $t['items_json'] !== '[]')
+                                            @php
+                                                $itemsArray = json_decode($t['items_json'], true);
+                                            @endphp
+                                            @if(is_array($itemsArray))
+                                                <span class="btn-receipt-view" 
+                                                      onclick='showReceiptModal({!! json_encode($itemsArray) !!}, "{{ addslashes($t['keterangan'] ?? '-') }}", {{ (int)($t['jumlah'] ?? 0) }}, "{{ $t['tanggal'] ?? '-' }}", "{{ $t['walletNama'] ?? 'Utama' }}")'
+                                                      style="margin-left: 8px; cursor: pointer; color: #FF528F; font-size: 13px;" 
+                                                      title="Lihat Rincian Item (Struk)">
+                                                    <i class="fa-solid fa-receipt"></i>
+                                                </span>
+                                            @endif
+                                        @endif
+                                    </td>
                                     <td><span style="font-weight: 600; color: #888;">{{ $t['kategori'] ?? 'Harian' }}</span></td>
                                     <td><span class="ledger-wallet" style="color: #FF528F; font-weight: 600;"><i class="fa-solid fa-wallet"></i> {{ $t['walletNama'] ?? 'Utama' }}</span></td>
                                     <td>
@@ -300,6 +315,81 @@
                 row.style.display = '';
             } else {
                 row.style.display = 'none';
+            }
+        });
+    }
+
+    function showReceiptModal(items, description, total, date, wallet) {
+        if (!items || items.length === 0) {
+            Swal.fire({
+                title: 'Detail Struk Belanja',
+                text: 'Tidak ada detail barang dalam transaksi ini.',
+                icon: 'info'
+            });
+            return;
+        }
+
+        let itemsHtml = '';
+        items.forEach(item => {
+            let name = item.name || item.nama || 'Barang';
+            let price = item.price || item.harga || 0;
+            let qty = item.qty || item.quantity || 1;
+            let subtotal = price * qty;
+            
+            itemsHtml += `
+                <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px; font-family: monospace;">
+                    <div style="text-align: left; flex: 2; word-break: break-word; color: #333;">${name}</div>
+                    <div style="text-align: right; flex: 1; color: #888;">${qty}x</div>
+                    <div style="text-align: right; flex: 1.5; font-weight: bold; color: #222;">Rp ${price.toLocaleString('id-ID')}</div>
+                </div>
+            `;
+        });
+
+        let htmlContent = `
+            <div style="border: 2px dashed #FF528F; padding: 22px 18px; border-radius: 12px; background-color: #FFFDFE; color: #444; text-align: left; font-family: monospace; position: relative;">
+                <div style="text-align: center; border-bottom: 2px dashed #FF528F; padding-bottom: 12px; margin-bottom: 15px;">
+                    <h3 style="margin: 0; color: #FF528F; font-weight: 800; font-family: 'Outfit', sans-serif; letter-spacing: 0.5px;">DANAKU KASIR</h3>
+                    <small style="color: #999; font-size: 10px;">Struk Belanja Kasir Digital</small>
+                </div>
+                
+                <div style="font-size: 12px; margin-bottom: 15px; border-bottom: 1px dashed #E0E0E0; padding-bottom: 10px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <span style="color: #666;">Tanggal:</span>
+                        <span style="font-weight: bold; color: #333;">${date}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <span style="color: #666;">Sumber Dana:</span>
+                        <span style="font-weight: bold; color: #FF528F;">${wallet}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #666;">Keterangan:</span>
+                        <span style="font-weight: bold; color: #333; max-width: 60%; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${description}</span>
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    ${itemsHtml}
+                </div>
+                
+                <div style="border-top: 2px dashed #FF528F; padding-top: 12px; margin-top: 15px; display: flex; justify-content: space-between; font-size: 16px; font-weight: 800;">
+                    <span style="color: #FF528F;">TOTAL:</span>
+                    <span style="color: #FF528F;">Rp ${total.toLocaleString('id-ID')}</span>
+                </div>
+                
+                <div style="text-align: center; margin-top: 22px; font-size: 10px; color: #bbb; letter-spacing: 0.5px;">
+                    *** TERIMA KASIH & SELAMAT BERHEMAT ***
+                </div>
+            </div>
+        `;
+
+        Swal.fire({
+            html: htmlContent,
+            showCloseButton: true,
+            showConfirmButton: false,
+            width: '380px',
+            background: '#FFF',
+            customClass: {
+                popup: 'swal2-receipt-popup'
             }
         });
     }
