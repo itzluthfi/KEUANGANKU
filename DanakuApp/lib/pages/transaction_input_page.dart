@@ -294,7 +294,12 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
 
     if (source == null) return;
 
-    final pickedFile = await picker.pickImage(source: source);
+    final pickedFile = await picker.pickImage(
+      source: source,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 80,
+    );
     if (pickedFile == null) return;
 
     setState(() => _isScanningReceipt = true);
@@ -360,42 +365,163 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
       return;
     }
 
-    if (!_isListening) {
-      bool available = await _speech.initialize(
-        onStatus: (val) {
-          if (val == 'notListening') {
-            setState(() => _isListening = false);
-            if (_spokenText.isNotEmpty) {
-              _processVoiceCommand(_spokenText);
-            }
-          }
-        },
-        onError: (val) => debugPrint('Speech Error: $val'),
-      );
-      
-      if (available) {
-        setState(() {
-          _isListening = true;
-          _spokenText = "";
-        });
-        _speech.listen(
-          onResult: (val) {
-            setState(() {
-              _spokenText = val.recognizedWords;
-            });
-          },
-          localeId: "id_ID",
-        );
-      } else {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Perekam suara tidak tersedia.")),
-        );
+    bool available = await _speech.initialize(
+      onStatus: (val) {
+        debugPrint('Speech Status: $val');
+        if (val == 'notListening') {
+          setState(() => _isListening = false);
+        }
+      },
+      onError: (val) {
+        debugPrint('Speech Error: $val');
+        setState(() => _isListening = false);
+      },
+    );
+
+    if (!available) {
+      if (mounted) {
+        CustomSnackBar.show(context, message: "Perekam suara tidak tersedia di perangkat Anda.", isError: true);
       }
-    } else {
-      _speech.stop();
-      setState(() => _isListening = false);
+      return;
     }
+
+    setState(() {
+      _isListening = true;
+      _spokenText = "";
+    });
+
+    _speech.listen(
+      onResult: (val) {
+        setState(() {
+          _spokenText = val.recognizedWords;
+        });
+      },
+      localeId: "id_ID",
+    );
+
+    if (!mounted) return;
+    showModalBottomSheet(
+      context: context,
+      isDismissible: false,
+      enableDrag: false,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            _speech.listen(
+              onResult: (val) {
+                if (mounted) {
+                  setState(() {
+                    _spokenText = val.recognizedWords;
+                  });
+                  setSheetState(() {});
+                }
+              },
+              localeId: "id_ID",
+            );
+
+            return Container(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    "Sedang Mendengarkan...",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black87),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "Katakan transaksi Anda (contoh: 'Beli sate 25 ribu rupiah')",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 30),
+                  
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    minHeight: 80,
+                    decoration: BoxDecoration(
+                      color: Colors.pink.shade50.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.pink.shade100.withOpacity(0.5)),
+                    ),
+                    child: Text(
+                      _spokenText.isEmpty ? "\"Suara Anda akan muncul di sini...\"" : "\"$_spokenText\"",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontStyle: _spokenText.isEmpty ? FontStyle.italic : FontStyle.normal,
+                        color: _spokenText.isEmpty ? Colors.grey.shade400 : Colors.black87,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+                  
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: Colors.grey.shade300),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          ),
+                          onPressed: () {
+                            _speech.stop();
+                            setState(() => _isListening = false);
+                            Navigator.pop(context);
+                          },
+                          child: Text("Batal", style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFF528F),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            elevation: 0,
+                          ),
+                          onPressed: () {
+                            _speech.stop();
+                            setState(() => _isListening = false);
+                            Navigator.pop(context);
+                            if (_spokenText.isNotEmpty) {
+                              _processVoiceCommand(_spokenText);
+                            } else {
+                              CustomSnackBar.show(context, message: "Tidak ada suara yang terdeteksi.", isError: true);
+                            }
+                          },
+                          child: const Text(
+                            "Selesai",
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Future<void> _processVoiceCommand(String text) async {
