@@ -15,6 +15,7 @@ class WalletPage extends StatefulWidget {
 
 class _WalletPageState extends State<WalletPage> {
   bool _isObscured = true;
+  bool isLoading = false;
 
   @override
   void initState() {
@@ -23,10 +24,15 @@ class _WalletPageState extends State<WalletPage> {
   }
 
   Future<void> _loadWallets() async {
+    setState(() => isLoading = true);
     final list = await DatabaseHelper.instance.fetchWallets();
-    if (list.isNotEmpty) {
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (mounted) {
       setState(() {
-        AppData.wallets = list;
+        if (list.isNotEmpty) {
+          AppData.wallets = list;
+        }
+        isLoading = false;
       });
     }
   }
@@ -60,7 +66,6 @@ class _WalletPageState extends State<WalletPage> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Pink Header - Content Driven Height
             Container(
               width: double.infinity,
               decoration: const BoxDecoration(
@@ -69,6 +74,17 @@ class _WalletPageState extends State<WalletPage> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(32),
+                  bottomRight: Radius.circular(32),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 10,
+                    offset: Offset(0, 5),
+                  )
+                ],
               ),
               child: Stack(
                 children: [
@@ -140,10 +156,15 @@ class _WalletPageState extends State<WalletPage> {
                                   const SizedBox(height: 2),
                                   FittedBox(
                                     fit: BoxFit.scaleDown,
-                                    child: Text(
-                                      _isObscured ? "****" : "Rp${NumberFormat.decimalPattern('id').format(totalAsset - totalHutang)}",
-                                      style: TextStyle(color: Colors.white, fontSize: isTablet ? 32 : 24, fontWeight: FontWeight.bold),
-                                    ),
+                                    child: isLoading
+                                        ? const Padding(
+                                            padding: EdgeInsets.symmetric(vertical: 4),
+                                            child: ShimmerWidget(width: 160, height: 22),
+                                          )
+                                        : Text(
+                                            _isObscured ? "****" : "Rp${NumberFormat.decimalPattern('id').format(totalAsset - totalHutang)}",
+                                            style: TextStyle(color: Colors.white, fontSize: isTablet ? 32 : 24, fontWeight: FontWeight.bold),
+                                          ),
                                   ),
                                 ],
                               ),
@@ -180,9 +201,21 @@ class _WalletPageState extends State<WalletPage> {
                 child: Column(
                   children: [
                     const SizedBox(height: 20),
-                    _buildWalletSection("Hutang", AppData.wallets.where((w) => w.jenis == "Hutang").toList()),
-                    const SizedBox(height: 20),
-                    _buildWalletSection("Akun virtual", AppData.wallets.where((w) => w.jenis != "Hutang").toList()),
+                    isLoading
+                        ? Column(
+                            children: [
+                              _buildShimmerWalletSection(),
+                              const SizedBox(height: 20),
+                              _buildShimmerWalletSection(),
+                            ],
+                          )
+                        : Column(
+                            children: [
+                              _buildWalletSection("Hutang", AppData.wallets.where((w) => w.jenis == "Hutang").toList()),
+                              const SizedBox(height: 20),
+                              _buildWalletSection("Akun virtual", AppData.wallets.where((w) => w.jenis != "Hutang").toList()),
+                            ],
+                          ),
                     const SizedBox(height: 100),
                   ],
                 ),
@@ -194,17 +227,21 @@ class _WalletPageState extends State<WalletPage> {
     );
   }
 
-
   Widget _buildSubStat(String label, int value) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: const TextStyle(color: Colors.white70, fontSize: 14)),
         const SizedBox(height: 5),
-        Text(
-          _isObscured ? "****" : "Rp${NumberFormat.decimalPattern('id').format(value)}",
-          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-        ),
+        isLoading
+            ? const Padding(
+                padding: EdgeInsets.symmetric(vertical: 4),
+                child: ShimmerWidget(width: 90, height: 16),
+              )
+            : Text(
+                _isObscured ? "****" : "Rp${NumberFormat.decimalPattern('id').format(value)}",
+                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+              ),
       ],
     );
   }
@@ -215,9 +252,16 @@ class _WalletPageState extends State<WalletPage> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 15),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(25),
-        boxShadow: [BoxShadow(color: Colors.black.withAlpha(10), blurRadius: 10, offset: const Offset(0, 5))],
+        color: Colors.white.withOpacity(0.95),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withOpacity(0.4), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -225,8 +269,8 @@ class _WalletPageState extends State<WalletPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             decoration: BoxDecoration(
-              color: Colors.pink.shade50,
-              borderRadius: const BorderRadius.only(topLeft: Radius.circular(25), topRight: Radius.circular(25)),
+              color: Colors.pink.shade50.withOpacity(0.5),
+              borderRadius: const BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -277,6 +321,143 @@ class _WalletPageState extends State<WalletPage> {
           const Text("IDR(1.0)", style: TextStyle(color: Colors.grey, fontSize: 11)),
         ],
       ),
+    );
+  }
+
+  Widget _buildShimmerWalletSection() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 15),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.95),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withOpacity(0.4), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Shimmer Section Header
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.pink.shade50.withOpacity(0.5),
+              borderRadius: const BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: const [
+                ShimmerWidget(width: 80, height: 14),
+                ShimmerWidget(width: 100, height: 12),
+              ],
+            ),
+          ),
+          // Shimmer Wallet Items
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              children: List.generate(2, (index) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 10.0),
+                  child: Row(
+                    children: [
+                      // Icon Shimmer
+                      const ShimmerWidget(width: 40, height: 40, borderRadius: BorderRadius.all(Radius.circular(15))),
+                      const SizedBox(width: 12),
+                      // Title Shimmer
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: const [
+                            ShimmerWidget(width: 120, height: 14),
+                            SizedBox(height: 6),
+                            ShimmerWidget(width: 60, height: 10),
+                          ],
+                        ),
+                      ),
+                      // Amount Shimmer
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: const [
+                          ShimmerWidget(width: 70, height: 14),
+                          SizedBox(height: 4),
+                          ShimmerWidget(width: 40, height: 10),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ⏳ Shimmer Loading Skeleton Screen Helper (No Packages)
+class ShimmerWidget extends StatefulWidget {
+  final double width;
+  final double height;
+  final BorderRadius borderRadius;
+
+  const ShimmerWidget({
+    super.key,
+    required this.width,
+    required this.height,
+    this.borderRadius = const BorderRadius.all(Radius.circular(8)),
+  });
+
+  @override
+  State<ShimmerWidget> createState() => _ShimmerWidgetState();
+}
+
+class _ShimmerWidgetState extends State<ShimmerWidget> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Container(
+          width: widget.width,
+          height: widget.height,
+          decoration: BoxDecoration(
+            borderRadius: widget.borderRadius,
+            gradient: LinearGradient(
+              colors: [
+                Colors.grey.shade300,
+                Colors.grey.shade100,
+                Colors.grey.shade300,
+              ],
+              stops: const [0.1, 0.5, 0.9],
+              begin: Alignment(-1.0 + _controller.value * 2, -0.3),
+              end: Alignment(1.0 + _controller.value * 2, 0.3),
+            ),
+          ),
+        );
+      },
     );
   }
 }

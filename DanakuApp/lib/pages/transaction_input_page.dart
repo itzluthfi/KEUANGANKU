@@ -448,27 +448,27 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
                   ),
                   const SizedBox(height: 30),
                   
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    constraints: const BoxConstraints(minHeight: 80),
-                    decoration: BoxDecoration(
-                      color: Colors.pink.shade50.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.pink.shade100.withOpacity(0.5)),
-                    ),
-                    child: Text(
-                      _spokenText.isEmpty ? "\"Suara Anda akan muncul di sini...\"" : "\"$_spokenText\"",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontStyle: _spokenText.isEmpty ? FontStyle.italic : FontStyle.normal,
-                        color: _spokenText.isEmpty ? Colors.grey.shade400 : Colors.black87,
-                        height: 1.4,
+                  if (_spokenText.isNotEmpty) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.pink.shade50.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.pink.shade100.withOpacity(0.5)),
+                      ),
+                      child: Text(
+                        "\"$_spokenText\"",
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.black87,
+                          height: 1.4,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 30),
+                    const SizedBox(height: 30),
+                  ],
                   
                   Row(
                     children: [
@@ -840,9 +840,9 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
                     height: availableHeight,
                     child: Column(
                       children: [
-                        // Top Navigation Bar
+                        // Top Navigation Bar (Row 1: Close Button & Centered Title)
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 10),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -850,26 +850,45 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
                                 icon: const Icon(Icons.close, color: Colors.pink, size: 26),
                                 onPressed: () => Navigator.pop(context),
                               ),
-                              
-                              // Toggle Switch (3 tabs)
-                              Flexible(
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: Colors.pink.shade50,
-                                    borderRadius: BorderRadius.circular(30),
-                                  ),
-                                  padding: const EdgeInsets.all(2),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Flexible(child: _buildTypeToggle("keluar", "Keluar", Icons.arrow_circle_up)),
-                                      Flexible(child: _buildTypeToggle("masuk", "Masuk", Icons.arrow_circle_down)),
-                                      Flexible(child: _buildTypeToggle("transfer", "Transfer", Icons.swap_horiz_rounded)),
-                                    ],
-                                  ),
+                              const Text(
+                                "Transaksi Baru",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
                                 ),
                               ),
-                              
+                              const SizedBox(width: 48), // Balanced spacer for title centering
+                            ],
+                          ),
+                        ),
+
+                        // Toggle Switch (Row 2: Full Width Left-to-Right)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                          child: Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: Colors.pink.shade50,
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            padding: const EdgeInsets.all(3),
+                            child: Row(
+                              children: [
+                                Expanded(child: _buildTypeToggle("keluar", "Keluar", Icons.arrow_circle_up)),
+                                Expanded(child: _buildTypeToggle("masuk", "Masuk", Icons.arrow_circle_down)),
+                                Expanded(child: _buildTypeToggle("transfer", "Transfer", Icons.swap_horiz_rounded)),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        // Action Icons Row (Row 3: Centered below the Toggle)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
                               _isScanningReceipt
                                   ? const Padding(
                                       padding: EdgeInsets.symmetric(horizontal: 12),
@@ -879,51 +898,74 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
                                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.pink),
                                       ),
                                     )
-                                  : Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        IconButton(
-                                          icon: const Icon(Icons.document_scanner, color: Colors.pink, size: 26),
-                                          onPressed: _scanReceipt,
-                                          tooltip: "Pindai Struk",
-                                        ),
-                                        if (_queuedTransactions.isNotEmpty)
-                                          Stack(
-                                            clipBehavior: Clip.none,
-                                            children: [
-                                              IconButton(
-                                                icon: const Icon(Icons.shopping_cart_outlined, color: Colors.pink, size: 26),
-                                                onPressed: _showQueueManager,
-                                                tooltip: "Kelola Antrean",
-                                              ),
-                                              Positioned(
-                                                right: 2,
-                                                top: 2,
-                                                child: Container(
-                                                  padding: const EdgeInsets.all(2),
-                                                  decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                                                  constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
-                                                  alignment: Alignment.center,
-                                                  child: Text(
-                                                    _queuedTransactions.length.toString(),
-                                                    style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        IconButton(
-                                          icon: const Icon(Icons.add_circle_outline_rounded, color: Colors.pink, size: 26),
-                                          onPressed: _queueCurrentTransaction,
-                                          tooltip: "Antrekan Transaksi",
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(Icons.check_rounded, color: Colors.pink, size: 26),
-                                          onPressed: _saveTransaction,
-                                          tooltip: "Simpan Semua",
-                                        ),
-                                      ],
+                                  : Container(
+                                      margin: const EdgeInsets.symmetric(horizontal: 8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.pink.shade50.withOpacity(0.5),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: IconButton(
+                                        icon: const Icon(Icons.document_scanner, color: Colors.pink, size: 22),
+                                        onPressed: _scanReceipt,
+                                        tooltip: "Pindai Struk",
+                                      ),
                                     ),
+                              if (_queuedTransactions.isNotEmpty)
+                                Container(
+                                  margin: const EdgeInsets.symmetric(horizontal: 8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.pink.shade50.withOpacity(0.5),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Stack(
+                                    clipBehavior: Clip.none,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.shopping_cart_outlined, color: Colors.pink, size: 22),
+                                        onPressed: _showQueueManager,
+                                        tooltip: "Kelola Antrean",
+                                      ),
+                                      Positioned(
+                                        right: -2,
+                                        top: -2,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(2),
+                                          decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                                          constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
+                                          alignment: Alignment.center,
+                                          child: Text(
+                                            _queuedTransactions.length.toString(),
+                                            style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              Container(
+                                margin: const EdgeInsets.symmetric(horizontal: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.pink.shade50.withOpacity(0.5),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: IconButton(
+                                  icon: const Icon(Icons.add_circle_outline_rounded, color: Colors.pink, size: 22),
+                                  onPressed: _queueCurrentTransaction,
+                                  tooltip: "Antrekan Transaksi",
+                                ),
+                              ),
+                              Container(
+                                margin: const EdgeInsets.symmetric(horizontal: 8),
+                                decoration: const BoxDecoration(
+                                  color: Colors.pink,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: IconButton(
+                                  icon: const Icon(Icons.check_rounded, color: Colors.white, size: 22),
+                                  onPressed: _saveTransaction,
+                                  tooltip: "Simpan Semua",
+                                ),
+                              ),
                             ],
                           ),
                         ),
