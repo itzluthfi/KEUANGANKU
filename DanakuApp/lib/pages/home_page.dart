@@ -314,117 +314,14 @@ class HomePageState extends State<HomePage> {
             constraints: const BoxConstraints(maxWidth: 800),
             child: Stack(
               children: [
+                // 1. Scrollable Content (Under the fixed header)
                 SingleChildScrollView(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Header & Background Gradient (Pill-like shape)
-                      Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          Container(
-                            height: isTablet ? 300 : 255,
-                            decoration: const BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [Color(0xFFFF528F), Color(0xFFFF7A9F)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.only(
-                                bottomLeft: Radius.circular(32),
-                                bottomRight: Radius.circular(32),
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black12,
-                                  blurRadius: 10,
-                                  offset: Offset(0, 5),
-                                )
-                              ],
-                            ),
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Top Header
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    const Icon(Icons.search, color: Colors.white, size: 28),
-                                    Flexible(
-                                      child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.end,
-                                        children: [
-                                          _buildViewToggleButton(
-                                            icon: Icons.shopping_basket,
-                                            label: "Detail",
-                                            isActive: !isCalendarView,
-                                            activeColor: Colors.pink,
-                                            onTap: () => setState(() => isCalendarView = false),
-                                          ),
-                                          const SizedBox(width: 10),
-                                          _buildViewToggleButton(
-                                            icon: Icons.calendar_month,
-                                            label: "Kalender",
-                                            isActive: isCalendarView,
-                                            activeColor: Colors.blue,
-                                            onTap: () => setState(() => isCalendarView = true),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              
-                              // Title
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                                child: InkWell(
-                                  onTap: _showSwitchBookDialog,
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Flexible(
-                                        child: Text(
-                                          AppData.activeBookName,
-                                          style: TextStyle(
-                                            color: Colors.white, 
-                                            fontSize: isTablet ? 40 : 32, 
-                                            fontWeight: FontWeight.bold
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      const Icon(Icons.arrow_drop_down, color: Colors.white, size: 30),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              
-                              // Horizontal Actions
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                                child: Row(
-                                  children: [
-                                    _topActionItem(Icons.person_pin_outlined, AppData.activeBookName.split(' ').first, true),
-                                    const SizedBox(width: 25),
-                                    _topActionItem(Icons.add, "Baru Buku", false, onTap: _createNewBook),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 20),
-                            ],
-                          ),
-                        ],
-                      ),
+                      const SizedBox(height: 140), // Offset to start content below the fixed header
                       
-                      const SizedBox(height: 20),
-
-                      // Conditional View
+                      // Conditional View (Detail/Calendar)
                       if (isCalendarView) ...[
                         _buildCalendarCard(),
                         const SizedBox(height: 20),
@@ -439,6 +336,98 @@ class HomePageState extends State<HomePage> {
                       
                       const SizedBox(height: 100),
                     ],
+                  ),
+                ),
+                
+                // 2. Fixed Top Header (AppBar)
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.fromLTRB(20, 15, 20, 15),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFFFF528F), Color(0xFFFF7A9F)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.only(
+                        bottomLeft: Radius.circular(28),
+                        bottomRight: Radius.circular(28),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 8,
+                          offset: Offset(0, 4),
+                        )
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Row 1: Search & Toggle Buttons
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Icon(Icons.search, color: Colors.white, size: 28),
+                            Row(
+                              children: [
+                                _buildViewToggleButton(
+                                  icon: Icons.shopping_basket,
+                                  label: "Detail",
+                                  isActive: !isCalendarView,
+                                  activeColor: Colors.pink,
+                                  onTap: () => setState(() => isCalendarView = false),
+                                ),
+                                const SizedBox(width: 10),
+                                _buildViewToggleButton(
+                                  icon: Icons.calendar_month,
+                                  label: "Kalender",
+                                  isActive: isCalendarView,
+                                  activeColor: Colors.blue,
+                                  onTap: () => setState(() => isCalendarView = true),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        // Row 2: Active Book Dropdown & Action Items
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            InkWell(
+                              onTap: _showSwitchBookDialog,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    AppData.activeBookName,
+                                    style: TextStyle(
+                                      color: Colors.white, 
+                                      fontSize: isTablet ? 28 : 22, 
+                                      fontWeight: FontWeight.bold
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Icon(Icons.arrow_drop_down, color: Colors.white, size: 26),
+                                ],
+                              ),
+                            ),
+                            Row(
+                              children: [
+                                _topActionItem(Icons.person_pin_outlined, AppData.activeBookName.split(' ').first, true),
+                                const SizedBox(width: 15),
+                                _topActionItem(Icons.add, "Baru Buku", false, onTap: _createNewBook),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 Positioned(

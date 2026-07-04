@@ -19,6 +19,8 @@ class _ReportPageState extends State<ReportPage> {
   DateTime _selectedMonth = DateTime.now();
   List<Transaksi> _transactions = [];
   List<Wallet> _wallets = [];
+  String _selectedCategory = "Semua";
+  String _selectedWallet = "Semua";
 
   @override
   void initState() {
@@ -246,23 +248,160 @@ class _ReportPageState extends State<ReportPage> {
       ),
     );
   }
-  Widget _buildSubToggle() {
-    if (_viewMode >= 4) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Align(
-        alignment: Alignment.centerLeft,
+  void _showCategoryFilterSheet() {
+    var categories = ["Semua", ..._transactions.map((t) => t.kategori).toSet().toList()];
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) => SafeArea(
+        top: false,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(color: Colors.pink.shade50, borderRadius: BorderRadius.circular(20)),
-          child: Row(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text("Oleh $_groupBy", style: const TextStyle(color: Colors.pink, fontWeight: FontWeight.bold, fontSize: 11)),
-              const Icon(Icons.keyboard_arrow_down, color: Colors.pink, size: 16),
+              const Text("Pilih Kategori", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black87)),
+              const SizedBox(height: 10),
+              const Divider(),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: categories.length,
+                  itemBuilder: (context, index) {
+                    final catName = categories[index];
+                    final isSelected = _selectedCategory == catName;
+                    return ListTile(
+                      title: Text(catName == "Semua" ? "Semua Kategori" : catName),
+                      trailing: isSelected ? const Icon(Icons.check_circle, color: Colors.pink) : null,
+                      onTap: () {
+                        setState(() {
+                          _selectedCategory = catName;
+                        });
+                        Navigator.pop(context);
+                      },
+                    );
+                  },
+                ),
+              ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _showWalletFilterSheet() {
+    var wallets = ["Semua", ..._wallets.map((w) => w.nama).toList()];
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) => SafeArea(
+        top: false,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text("Pilih Dompet", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black87)),
+              const SizedBox(height: 10),
+              const Divider(),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: wallets.length,
+                  itemBuilder: (context, index) {
+                    final wName = wallets[index];
+                    final isSelected = _selectedWallet == wName;
+                    return ListTile(
+                      title: Text(wName == "Semua" ? "Semua Dompet" : wName),
+                      trailing: isSelected ? const Icon(Icons.check_circle, color: Colors.pink) : null,
+                      onTap: () {
+                        setState(() {
+                          _selectedWallet = wName;
+                        });
+                        Navigator.pop(context);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSubToggle() {
+    if (_viewMode >= 4) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+      child: Row(
+        children: [
+          // Category Filter Chip
+          GestureDetector(
+            onTap: _showCategoryFilterSheet,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: _selectedCategory == "Semua" ? Colors.pink.shade50 : Colors.pink,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.pink.shade100),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _selectedCategory == "Semua" ? "Kategori: Semua" : _selectedCategory,
+                    style: TextStyle(
+                      color: _selectedCategory == "Semua" ? Colors.pink : Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.keyboard_arrow_down,
+                    color: _selectedCategory == "Semua" ? Colors.pink : Colors.white,
+                    size: 16,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          // Wallet Filter Chip
+          GestureDetector(
+            onTap: _showWalletFilterSheet,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: _selectedWallet == "Semua" ? Colors.blue.shade50 : Colors.blue,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.blue.shade100),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _selectedWallet == "Semua" ? "Dompet: Semua" : _selectedWallet,
+                    style: TextStyle(
+                      color: _selectedWallet == "Semua" ? Colors.blue.shade700 : Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.keyboard_arrow_down,
+                    color: _selectedWallet == "Semua" ? Colors.blue.shade700 : Colors.white,
+                    size: 16,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -273,7 +412,16 @@ class _ReportPageState extends State<ReportPage> {
     
     // Grouping logic
     final isExpense = _viewMode == 0 || _viewMode == 2 || _viewMode == 3;
-    final filtered = _transactions.where((t) => isExpense ? (t.jenis == "keluar" || t.jenis == "pengeluaran") : t.jenis == "masuk").toList();
+    final filtered = _transactions.where((t) {
+      final matchesType = isExpense
+          ? (t.jenis == "keluar" || t.jenis == "pengeluaran")
+          : (t.jenis == "masuk" || t.jenis == "pemasukan");
+      
+      final matchesCategory = _selectedCategory == "Semua" || t.kategori == _selectedCategory;
+      final matchesWallet = _selectedWallet == "Semua" || t.walletNama == _selectedWallet;
+      
+      return matchesType && matchesCategory && matchesWallet;
+    }).toList();
     
     Map<String, int> grouped = {};
     int total = 0;
@@ -290,7 +438,7 @@ class _ReportPageState extends State<ReportPage> {
 
     return Column(
       children: [
-        _buildAnalysisCard(grouped, total, isExpense),
+        _buildAnalysisButton(grouped, total, isExpense),
         // Donut Chart
         SizedBox(
           height: chartSize + 120,
@@ -492,9 +640,31 @@ class _ReportPageState extends State<ReportPage> {
   }
 
 
-  Widget _buildAnalysisCard(Map<String, int> grouped, int total, bool isExpense) {
+  Widget _buildAnalysisButton(Map<String, int> grouped, int total, bool isExpense) {
     if (grouped.isEmpty) return const SizedBox.shrink();
 
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          TextButton.icon(
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.pink,
+              backgroundColor: Colors.pink.shade50,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            ),
+            icon: const Icon(Icons.lightbulb_rounded, color: Colors.amber, size: 18),
+            label: const Text("Insight AI Bulan Ini", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+            onPressed: () => _showInsightModal(grouped, total, isExpense),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showInsightModal(Map<String, int> grouped, int total, bool isExpense) {
     String highestCategory = "";
     int highestValue = 0;
     grouped.forEach((key, value) {
@@ -505,7 +675,6 @@ class _ReportPageState extends State<ReportPage> {
     });
 
     double percent = (highestValue / total) * 100;
-
     String message = "";
     if (isExpense) {
       message = "Pengeluaran terbesar Anda adalah pada kategori $highestCategory sebesar Rp${NumberFormat.decimalPattern('id').format(highestValue)} (${percent.toStringAsFixed(1)}% dari total pengeluaran).";
@@ -513,29 +682,55 @@ class _ReportPageState extends State<ReportPage> {
       message = "Pemasukan terbesar Anda adalah dari kategori $highestCategory sebesar Rp${NumberFormat.decimalPattern('id').format(highestValue)} (${percent.toStringAsFixed(1)}% dari total pemasukan).";
     }
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: Colors.blue.shade50,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: Colors.blue.shade100)
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.lightbulb_outline, color: Colors.blue, size: 30),
-          const SizedBox(width: 15),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text("Insight Bulan Ini", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue, fontSize: 14)),
-                const SizedBox(height: 5),
-                Text(message, style: const TextStyle(fontSize: 12, color: Colors.black87)),
-              ],
-            ),
-          )
-        ],
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) => SafeArea(
+        top: false,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40, height: 5,
+                  decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: const [
+                  Icon(Icons.auto_awesome, color: Colors.amber, size: 24),
+                  SizedBox(width: 8),
+                  Text("Insight Keuangan AI", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black87)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const Divider(),
+              const SizedBox(height: 15),
+              Text(
+                message,
+                style: const TextStyle(fontSize: 14, height: 1.5, color: Colors.black87),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.pink,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    elevation: 0,
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Tutup", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

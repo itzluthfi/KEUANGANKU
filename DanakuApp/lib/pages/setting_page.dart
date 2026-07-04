@@ -1169,52 +1169,52 @@ class _SettingPageState extends State<SettingPage> {
                 crossAxisSpacing: 14,
                 childAspectRatio: 0.95,
                 children: [
-                  _buildGridItem(
+                  GridMenuItem(
                     lottieAsset: "assets/icons/mail.json",
                     label: "Kotak Pesan",
                     onTap: _showInboxDialog,
                   ),
-                  _buildGridItem(
+                  GridMenuItem(
                     icon: Icons.category_rounded,
                     label: "Kategori",
                     onTap: _showCategorySelection,
                   ),
-                  _buildGridItem(
+                  GridMenuItem(
                     icon: Icons.account_balance_wallet_rounded,
                     label: "Dompet",
                     onTap: _navigateToDompet,
                   ),
-                  _buildGridItem(
+                  GridMenuItem(
                     lottieAsset: "assets/icons/explore.json",
                     label: "Tukar Kurs",
                     onTap: _showExchangeDialog,
                   ),
-                  _buildGridItem(
+                  GridMenuItem(
                     lottieAsset: "assets/icons/activity.json",
                     label: "Anggaran",
                     onTap: _showBudgetDialog,
                   ),
-                  _buildGridItem(
+                  GridMenuItem(
                     lottieAsset: "assets/icons/notification.json",
                     label: "Pengingat",
                     onTap: _showReminderDialog,
                   ),
-                  _buildGridItem(
+                  GridMenuItem(
                     lottieAsset: "assets/icons/download.json",
                     label: "Ekspor Laporan",
                     onTap: _showExportOptionsSheet,
                   ),
-                  _buildGridItem(
+                  GridMenuItem(
                     lottieAsset: "assets/icons/archive.json",
-                    label: "T. Berulang",
+                    label: "Transaksi Berulang",
                     onTap: _navigateToRecurring,
                   ),
-                  _buildGridItem(
+                  GridMenuItem(
                     lottieAsset: "assets/icons/lock.json",
                     label: "Kunci PIN",
                     onTap: _showPinSettingDialog,
                   ),
-                  _buildGridItem(
+                  GridMenuItem(
                     lottieAsset: "assets/icons/info.json",
                     label: "Tentang",
                     onTap: _showAbout,
@@ -1253,17 +1253,48 @@ class _SettingPageState extends State<SettingPage> {
     );
   }
 
-  // Builder Item Grid
-  Widget _buildGridItem({
-    IconData? icon,
-    String? lottieAsset,
-    required String label,
-    required VoidCallback onTap,
-  }) {
+}
+
+// Stateful Grid Menu Item to control Lottie animation speed and loop timing
+class GridMenuItem extends StatefulWidget {
+  final String? lottieAsset;
+  final IconData? icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const GridMenuItem({
+    super.key,
+    this.lottieAsset,
+    this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  State<GridMenuItem> createState() => _GridMenuItemState();
+}
+
+class _GridMenuItemState extends State<GridMenuItem> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     Color bgColor = Colors.pink.shade50;
     Color iconColor = Colors.pink;
     return InkWell(
-      onTap: onTap,
+      onTap: widget.onTap,
       borderRadius: BorderRadius.circular(20),
       child: Card(
         elevation: 1.5,
@@ -1274,26 +1305,30 @@ class _SettingPageState extends State<SettingPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: lottieAsset != null ? const EdgeInsets.all(10) : const EdgeInsets.all(12),
+              padding: widget.lottieAsset != null ? const EdgeInsets.all(10) : const EdgeInsets.all(12),
               decoration: BoxDecoration(color: bgColor, shape: BoxShape.circle),
-              child: lottieAsset != null
+              child: widget.lottieAsset != null
                   ? SizedBox(
                       width: 26,
                       height: 26,
                       child: ColorFiltered(
                         colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
                         child: Lottie.asset(
-                          lottieAsset,
-                          animate: true,
-                          repeat: true,
+                          widget.lottieAsset!,
+                          controller: _controller,
+                          onLoaded: (composition) {
+                            // Slow down duration of the loop to 2x composition duration to prevent glitching
+                            _controller.duration = composition.duration * 2.2;
+                            _controller.repeat();
+                          },
                         ),
                       ),
                     )
-                  : Icon(icon ?? Icons.help_outline, color: iconColor, size: 26),
+                  : Icon(widget.icon ?? Icons.help_outline, color: iconColor, size: 26),
             ),
             const SizedBox(height: 8),
             Text(
-              label,
+              widget.label,
               textAlign: TextAlign.center,
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.black87),
             ),
