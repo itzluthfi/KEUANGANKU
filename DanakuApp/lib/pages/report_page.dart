@@ -300,7 +300,12 @@ class _ReportPageState extends State<ReportPage> {
             children: [
               CustomPaint(
                 size: Size(chartSize, chartSize),
-                painter: DonutChartPainter(grouped: grouped, total: total, getColor: _getCategoryColor),
+                painter: DonutChartPainter(
+                  grouped: grouped,
+                  total: total,
+                  getColor: _getReportColor,
+                  isExpense: isExpense,
+                ),
               ),
               // Center Text
               Column(
@@ -314,7 +319,7 @@ class _ReportPageState extends State<ReportPage> {
                 ],
               ),
               // Floating Icons/Labels
-              ..._buildDonutLabels(grouped, total, chartSize / 2 - 40, Offset(screenSize.width / 2, (chartSize + 120) / 2)),
+              ..._buildDonutLabels(grouped, total, chartSize / 2 - 40, Offset(screenSize.width / 2, (chartSize + 120) / 2), isExpense),
             ],
           ),
         ),
@@ -340,8 +345,8 @@ class _ReportPageState extends State<ReportPage> {
                 ? Image.asset(cat.imagePath!, width: 40, height: 40)
                 : Container(
                     padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: _getCategoryColor(key).withAlpha(30), shape: BoxShape.circle),
-                    child: Icon(cat.icon ?? Icons.category, color: _getCategoryColor(key), size: 24),
+                    decoration: BoxDecoration(color: _getReportColor(index, key, isExpense).withAlpha(30), shape: BoxShape.circle),
+                    child: Icon(cat.icon ?? Icons.category, color: _getReportColor(index, key, isExpense), size: 24),
                   ),
               title: Text(key, style: const TextStyle(fontWeight: FontWeight.w500)),
               trailing: Row(
@@ -637,7 +642,7 @@ class _ReportPageState extends State<ReportPage> {
     );
   }
 
-  List<Widget> _buildDonutLabels(Map<String, int> grouped, int total, double radius, Offset center) {
+  List<Widget> _buildDonutLabels(Map<String, int> grouped, int total, double radius, Offset center, bool isExpense) {
     List<Widget> labels = [];
     double startAngle = -1.5708;
     int i = 0;
@@ -664,7 +669,7 @@ class _ReportPageState extends State<ReportPage> {
               color: Colors.white,
               shape: BoxShape.circle,
               boxShadow: [BoxShadow(color: Colors.black.withAlpha(30), blurRadius: 4, offset: const Offset(0, 2))],
-              border: Border.all(color: _getCategoryColor(key).withAlpha(100), width: 2),
+              border: Border.all(color: _getReportColor(i, key, isExpense).withAlpha(100), width: 2),
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -672,7 +677,7 @@ class _ReportPageState extends State<ReportPage> {
                 if (cat.imagePath != null)
                   Image.asset(cat.imagePath!, width: 22, height: 22)
                 else
-                  Icon(cat.icon ?? Icons.category, size: 18, color: _getCategoryColor(key)),
+                  Icon(cat.icon ?? Icons.category, size: 18, color: _getReportColor(i, key, isExpense)),
                 Text("${((value / total) * 100).toInt()}%", style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.black87)),
               ],
             ),
@@ -707,14 +712,55 @@ class _ReportPageState extends State<ReportPage> {
       default: return Colors.grey;
     }
   }
+
+  Color _getReportColor(int index, String key, bool isExpense) {
+    if (key.toLowerCase() == 'transfer') {
+      final greyShades = [
+        Colors.grey.shade500,
+        Colors.grey.shade400,
+        Colors.blueGrey.shade400,
+        Colors.grey.shade600,
+        Colors.grey.shade300,
+      ];
+      return greyShades[index % greyShades.length];
+    }
+    
+    if (!isExpense) {
+      // Pemasukan -> Green shades
+      final greenShades = [
+        Colors.green.shade500,
+        Colors.green.shade400,
+        Colors.teal.shade400,
+        Colors.lightGreen.shade500,
+        Colors.green.shade600,
+        Colors.teal.shade300,
+        Colors.green.shade300,
+      ];
+      return greenShades[index % greenShades.length];
+    } else {
+      // Pengeluaran -> Red shades
+      final redShades = [
+        const Color(0xFFFF528F), // Theme pink/red
+        Colors.red.shade400,
+        Colors.orange.shade500,
+        Colors.pink.shade400,
+        Colors.red.shade600,
+        Colors.orange.shade400,
+        Colors.red.shade300,
+        Colors.pink.shade300,
+      ];
+      return redShades[index % redShades.length];
+    }
+  }
 }
 
 class DonutChartPainter extends CustomPainter {
   final Map<String, int> grouped;
   final int total;
-  final Color Function(String) getColor;
+  final Color Function(int, String, bool) getColor;
+  final bool isExpense;
 
-  DonutChartPainter({required this.grouped, required this.total, required this.getColor});
+  DonutChartPainter({required this.grouped, required this.total, required this.getColor, required this.isExpense});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -724,18 +770,20 @@ class DonutChartPainter extends CustomPainter {
     
     double startAngle = -1.5708;
     
+    int index = 0;
     grouped.forEach((key, value) {
       double sweepAngle = (value / total) * 6.28319;
       if (sweepAngle < 0.05) sweepAngle = 0.05; // Min visibility
 
       final paint = Paint()
-        ..color = getColor(key)
+        ..color = getColor(index, key, isExpense)
         ..style = PaintingStyle.stroke
         ..strokeWidth = strokeWidth
         ..strokeCap = StrokeCap.butt;
       
       canvas.drawArc(Rect.fromCircle(center: center, radius: radius), startAngle, sweepAngle, false, paint);
       startAngle += sweepAngle;
+      index++;
     });
   }
 
