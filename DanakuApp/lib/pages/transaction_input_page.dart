@@ -1113,18 +1113,90 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
                               style: const TextStyle(fontSize: 15, color: Colors.black87, height: 1.4, fontWeight: FontWeight.w600),
                             ),
                             const SizedBox(height: 25),
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.grey.shade100,
-                                foregroundColor: Colors.pink,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                                minimumSize: const Size(120, 45),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton(
+                                    style: OutlinedButton.styleFrom(
+                                      side: BorderSide(color: Colors.grey.shade300),
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                                    ),
+                                    onPressed: () {
+                                      _speech.stop();
+                                      setState(() => _isListening = false);
+                                    },
+                                    child: Text("Batal", style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFFFF528F),
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                                      elevation: 0,
+                                    ),
+                                    onPressed: () {
+                                      _speech.stop();
+                                      setState(() => _isListening = false);
+                                      if (_spokenText.isNotEmpty) {
+                                        _processVoiceCommand(_spokenText);
+                                      } else {
+                                        CustomSnackBar.show(context, message: "Tidak ada suara yang terdeteksi.", isError: true);
+                                      }
+                                    },
+                                    child: const Text("Selesai", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+            // AI Receipt Scanner Blur/Thinking Overlay
+            if (_isScanningReceipt)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black.withOpacity(0.5),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                    child: Center(
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 35),
+                        padding: const EdgeInsets.all(30),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(30),
+                          boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 25, offset: Offset(0, 5))],
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const SizedBox(
+                              width: 50,
+                              height: 50,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 4,
+                                color: Color(0xFFFF528F),
                               ),
-                              onPressed: () {
-                                _speech.stop();
-                                setState(() => _isListening = false);
-                              },
-                              child: const Text("Batal", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                            ),
+                            const SizedBox(height: 25),
+                            const Text(
+                              "AI Sedang Berpikir...",
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFFF528F)),
+                            ),
+                            const SizedBox(height: 12),
+                            const Text(
+                              "Menganalisis struk belanja Anda untuk mendeteksi nominal & barang secara otomatis. Mohon tunggu sebentar...",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 13, color: Colors.black54, height: 1.4),
                             ),
                           ],
                         ),
