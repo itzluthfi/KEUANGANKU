@@ -15,6 +15,7 @@ import 'manage_wallet_page.dart';
 import 'pin_lock_page.dart';
 import 'manage_recurring_page.dart';
 import 'notification_inbox_page.dart';
+import 'package:lottie/lottie.dart';
 
 class SettingPage extends StatefulWidget {
   const SettingPage({super.key});
@@ -1169,7 +1170,7 @@ class _SettingPageState extends State<SettingPage> {
                 childAspectRatio: 0.95,
                 children: [
                   _buildGridItem(
-                    icon: Icons.mark_email_unread_rounded,
+                    lottieAsset: "assets/icons/mail.json",
                     label: "Kotak Pesan",
                     onTap: _showInboxDialog,
                   ),
@@ -1184,22 +1185,22 @@ class _SettingPageState extends State<SettingPage> {
                     onTap: _navigateToDompet,
                   ),
                   _buildGridItem(
-                    icon: Icons.currency_exchange_rounded,
+                    lottieAsset: "assets/icons/explore.json",
                     label: "Tukar Kurs",
                     onTap: _showExchangeDialog,
                   ),
                   _buildGridItem(
-                    icon: Icons.track_changes_rounded,
+                    lottieAsset: "assets/icons/activity.json",
                     label: "Anggaran",
                     onTap: _showBudgetDialog,
                   ),
                   _buildGridItem(
-                    icon: Icons.notifications_active_rounded,
+                    lottieAsset: "assets/icons/notification.json",
                     label: "Pengingat",
                     onTap: _showReminderDialog,
                   ),
                   _buildGridItem(
-                    icon: Icons.file_download_rounded,
+                    lottieAsset: "assets/icons/download.json",
                     label: "Ekspor Laporan",
                     onTap: _showExportOptionsSheet,
                   ),
@@ -1254,7 +1255,8 @@ class _SettingPageState extends State<SettingPage> {
 
   // Builder Item Grid
   Widget _buildGridItem({
-    required IconData icon,
+    IconData? icon,
+    String? lottieAsset,
     required String label,
     required VoidCallback onTap,
   }) {
@@ -1272,9 +1274,22 @@ class _SettingPageState extends State<SettingPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: lottieAsset != null ? const EdgeInsets.all(10) : const EdgeInsets.all(12),
               decoration: BoxDecoration(color: bgColor, shape: BoxShape.circle),
-              child: Icon(icon, color: iconColor, size: 26),
+              child: lottieAsset != null
+                  ? SizedBox(
+                      width: 26,
+                      height: 26,
+                      child: ColorFiltered(
+                        colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
+                        child: Lottie.asset(
+                          lottieAsset,
+                          animate: true,
+                          repeat: true,
+                        ),
+                      ),
+                    )
+                  : Icon(icon ?? Icons.help_outline, color: iconColor, size: 26),
             ),
             const SizedBox(height: 8),
             Text(
