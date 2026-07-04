@@ -149,8 +149,21 @@ class _MainPageState extends State<MainPage> {
               ),
               BottomNavigationBarItem(
                 icon: Padding(
-                  padding: EdgeInsets.only(bottom: 4),
-                  child: Icon(Icons.account_balance_wallet_rounded),
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: ColorFiltered(
+                    colorFilter: ColorFilter.mode(
+                      currentIndex == 1 ? const Color(0xFFFF528F) : Colors.grey.shade400,
+                      BlendMode.srcIn,
+                    ),
+                    child: Lottie.asset(
+                      'assets/icons/wallet.json',
+                      key: ValueKey(currentIndex == 1),
+                      width: 24,
+                      height: 24,
+                      animate: currentIndex == 1,
+                      repeat: false,
+                    ),
+                  ),
                 ),
                 label: "Dompet",
               ),
@@ -164,11 +177,10 @@ class _MainPageState extends State<MainPage> {
                     ),
                     child: Lottie.asset(
                       'assets/icons/chart-loop.json',
-                      key: ValueKey(currentIndex == 2),
                       width: 24,
                       height: 24,
-                      animate: currentIndex == 2,
-                      repeat: false,
+                      animate: true,
+                      repeat: true,
                     ),
                   ),
                 ),
@@ -176,8 +188,20 @@ class _MainPageState extends State<MainPage> {
               ),
               BottomNavigationBarItem(
                 icon: Padding(
-                  padding: EdgeInsets.only(bottom: 4),
-                  child: Icon(Icons.settings_rounded),
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: ColorFiltered(
+                    colorFilter: ColorFilter.mode(
+                      currentIndex == 3 ? const Color(0xFFFF528F) : Colors.grey.shade400,
+                      BlendMode.srcIn,
+                    ),
+                    child: Lottie.asset(
+                      'assets/icons/loop-setting.json',
+                      width: 24,
+                      height: 24,
+                      animate: true,
+                      repeat: true,
+                    ),
+                  ),
                 ),
                 label: "Pengaturan",
               ),
