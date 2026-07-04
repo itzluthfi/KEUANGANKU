@@ -451,7 +451,7 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
-                    minHeight: 80,
+                    constraints: const BoxConstraints(minHeight: 80),
                     decoration: BoxDecoration(
                       color: Colors.pink.shade50.withOpacity(0.3),
                       borderRadius: BorderRadius.circular(16),
