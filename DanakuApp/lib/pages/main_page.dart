@@ -6,6 +6,7 @@ import 'transaction_input_page.dart';
 import 'setting_page.dart';
 import 'pin_lock_page.dart';
 import '../data/database_helper.dart';
+import 'package:lottie/lottie.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -125,11 +126,23 @@ class _MainPageState extends State<MainPage> {
                 currentIndex = index;
               });
             },
-            items: const [
+            items: [
               BottomNavigationBarItem(
                 icon: Padding(
-                  padding: EdgeInsets.only(bottom: 4),
-                  child: Icon(Icons.home_rounded),
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: ColorFiltered(
+                    colorFilter: ColorFilter.mode(
+                      currentIndex == 0 ? const Color(0xFFFF528F) : Colors.grey.shade400,
+                      BlendMode.srcIn,
+                    ),
+                    child: Lottie.asset(
+                      'assets/icons/home-icon.json',
+                      width: 24,
+                      height: 24,
+                      animate: currentIndex == 0,
+                      repeat: false,
+                    ),
+                  ),
                 ),
                 label: "Beranda",
               ),
