@@ -1205,17 +1205,17 @@ class _SettingPageState extends State<SettingPage> {
                     onTap: _showExportOptionsSheet,
                   ),
                   _buildGridItem(
-                    icon: Icons.replay_circle_filled_rounded,
+                    lottieAsset: "assets/icons/archive.json",
                     label: "T. Berulang",
                     onTap: _navigateToRecurring,
                   ),
                   _buildGridItem(
-                    icon: Icons.lock_rounded,
+                    lottieAsset: "assets/icons/lock.json",
                     label: "Kunci PIN",
                     onTap: _showPinSettingDialog,
                   ),
                   _buildGridItem(
-                    icon: Icons.info_outline_rounded,
+                    lottieAsset: "assets/icons/info.json",
                     label: "Tentang",
                     onTap: _showAbout,
                   ),

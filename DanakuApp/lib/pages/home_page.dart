@@ -32,6 +32,7 @@ class HomePageState extends State<HomePage> {
   bool _wasOffline = false;
   bool _showOnlineSuccessBanner = false;
   Timer? _successBannerTimer;
+  bool isLoading = false;
 
   @override
   void initState() {
@@ -59,19 +60,12 @@ class HomePageState extends State<HomePage> {
   }
 
   void _onConnectionChange() {
-    final newStatus = SyncService.instance.connectionStatus.value;
-    if (_isOnline == newStatus) return;
-
-    if (!newStatus) {
+    if (mounted) {
       setState(() {
-        _isOnline = false;
-        _wasOffline = true;
-        _showOnlineSuccessBanner = false;
-      });
-    } else {
-      setState(() {
-        _isOnline = true;
-        if (_wasOffline) {
+        _isOnline = SyncService.instance.connectionStatus.value;
+        if (!_isOnline) {
+          _wasOffline = true;
+        } else if (_isOnline && _wasOffline) {
           _showOnlineSuccessBanner = true;
         }
       });
@@ -88,13 +82,16 @@ class HomePageState extends State<HomePage> {
   }
 
   Future<void> loadData() async {
+    setState(() => isLoading = true);
     final allTransaksi = await DatabaseHelper.instance.fetchTransaksi();
     final allWallets = await DatabaseHelper.instance.fetchWallets();
+    await Future.delayed(const Duration(milliseconds: 400));
     setState(() {
       AppData.wallets = allWallets;
       transaksiBulanIni = allTransaksi.where((t) {
         return t.tanggal.month == selectedDate.month && t.tanggal.year == selectedDate.year;
       }).toList();
+      isLoading = false;
     });
   }
 
@@ -311,100 +308,121 @@ class HomePageState extends State<HomePage> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F7F6),
-      body: Stack(
-        children: [
-          // Background Pink Gradient - Responsive Height
-          Container(
-            height: screenSize.height * 0.4,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFFFF528F), Color(0xFFFF7A9F)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-          ),
-          
-          SafeArea(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 800),
-                child: SingleChildScrollView(
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 800),
+            child: Stack(
+              children: [
+                SingleChildScrollView(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Top Header
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Icon(Icons.search, color: Colors.white, size: 28),
-                            Flexible(
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                children: [
-                                  _buildViewToggleButton(
-                                    icon: Icons.shopping_basket,
-                                    label: "Detail",
-                                    isActive: !isCalendarView,
-                                    activeColor: Colors.pink,
-                                    onTap: () => setState(() => isCalendarView = false),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  _buildViewToggleButton(
-                                    icon: Icons.calendar_month,
-                                    label: "Kalender",
-                                    isActive: isCalendarView,
-                                    activeColor: Colors.blue,
-                                    onTap: () => setState(() => isCalendarView = true),
-                                  ),
-                                ],
+                      // Header & Background Gradient (Pill-like shape)
+                      Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Container(
+                            height: isTablet ? 300 : 255,
+                            decoration: const BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [Color(0xFFFF528F), Color(0xFFFF7A9F)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
                               ),
+                              borderRadius: BorderRadius.only(
+                                bottomLeft: Radius.circular(32),
+                                bottomRight: Radius.circular(32),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black12,
+                                  blurRadius: 10,
+                                  offset: Offset(0, 5),
+                                )
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
-                      
-                      // Title
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                        child: InkWell(
-                          onTap: _showSwitchBookDialog,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Flexible(
-                                child: Text(
-                                  AppData.activeBookName,
-                                  style: TextStyle(
-                                    color: Colors.white, 
-                                    fontSize: isTablet ? 40 : 32, 
-                                    fontWeight: FontWeight.bold
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
+                              // Top Header
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Icon(Icons.search, color: Colors.white, size: 28),
+                                    Flexible(
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.end,
+                                        children: [
+                                          _buildViewToggleButton(
+                                            icon: Icons.shopping_basket,
+                                            label: "Detail",
+                                            isActive: !isCalendarView,
+                                            activeColor: Colors.pink,
+                                            onTap: () => setState(() => isCalendarView = false),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          _buildViewToggleButton(
+                                            icon: Icons.calendar_month,
+                                            label: "Kalender",
+                                            isActive: isCalendarView,
+                                            activeColor: Colors.blue,
+                                            onTap: () => setState(() => isCalendarView = true),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              const SizedBox(width: 8),
-                              const Icon(Icons.arrow_drop_down, color: Colors.white, size: 30),
+                              
+                              // Title
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                                child: InkWell(
+                                  onTap: _showSwitchBookDialog,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          AppData.activeBookName,
+                                          style: TextStyle(
+                                            color: Colors.white, 
+                                            fontSize: isTablet ? 40 : 32, 
+                                            fontWeight: FontWeight.bold
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      const Icon(Icons.arrow_drop_down, color: Colors.white, size: 30),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              
+                              // Horizontal Actions
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                                child: Row(
+                                  children: [
+                                    _topActionItem(Icons.person_pin_outlined, AppData.activeBookName.split(' ').first, true),
+                                    const SizedBox(width: 25),
+                                    _topActionItem(Icons.add, "Baru Buku", false, onTap: _createNewBook),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 20),
                             ],
                           ),
-                        ),
+                        ],
                       ),
                       
-                      // Horizontal Actions
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                        child: Row(
-                          children: [
-                            _topActionItem(Icons.person_pin_outlined, AppData.activeBookName.split(' ').first, true),
-                            const SizedBox(width: 25),
-                            _topActionItem(Icons.add, "Baru Buku", false, onTap: _createNewBook),
-                          ],
-                        ),
-                      ),
-                      
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 20),
 
                       // Conditional View
                       if (isCalendarView) ...[
@@ -423,34 +441,33 @@ class HomePageState extends State<HomePage> {
                     ],
                   ),
                 ),
-              ),
+                Positioned(
+                  top: MediaQuery.of(context).padding.top + 10,
+                  left: 20,
+                  right: 20,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 400),
+                    child: !_isOnline
+                        ? _buildConnectionBanner(
+                            key: "offline",
+                            icon: Icons.wifi_off_rounded,
+                            message: "Mode Offline: Catatan disimpan lokal",
+                            color: Colors.orange.shade800,
+                          )
+                        : (_showOnlineSuccessBanner
+                            ? _buildConnectionBanner(
+                                key: "online",
+                                icon: Icons.wifi_rounded,
+                                message: "Kembali Online: Data disinkronkan!",
+                                color: Colors.green.shade700,
+                              )
+                            : const SizedBox.shrink()),
+                  ),
+                ),
+              ],
             ),
           ),
-          
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 10,
-            left: 20,
-            right: 20,
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 400),
-              child: !_isOnline
-                  ? _buildConnectionBanner(
-                      key: "offline",
-                      icon: Icons.wifi_off_rounded,
-                      message: "Mode Offline: Catatan disimpan lokal",
-                      color: Colors.orange.shade800,
-                    )
-                  : (_showOnlineSuccessBanner
-                      ? _buildConnectionBanner(
-                          key: "online",
-                          icon: Icons.wifi_rounded,
-                          message: "Kembali Online: Data disinkronkan!",
-                          color: Colors.green.shade700,
-                        )
-                      : const SizedBox.shrink()),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -524,9 +541,21 @@ class HomePageState extends State<HomePage> {
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 5))],
+        color: Colors.white.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: Colors.white.withOpacity(0.4), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+          BoxShadow(
+            color: const Color(0xFFFF528F).withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -545,10 +574,15 @@ class HomePageState extends State<HomePage> {
               const SizedBox(height: 5),
               FittedBox(
                 fit: BoxFit.scaleDown,
-                child: Text(
-                  _isObscured ? "Rp •••••••" : "Rp${NumberFormat.decimalPattern('id').format(totalIncome - totalExpense)}",
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
+                child: isLoading
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 4),
+                        child: ShimmerWidget(width: 140, height: 22),
+                      )
+                    : Text(
+                        _isObscured ? "Rp •••••••" : "Rp${NumberFormat.decimalPattern('id').format(totalIncome - totalExpense)}",
+                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                      ),
               ),
               const SizedBox(height: 15),
               const Divider(height: 1, color: Colors.black12),
@@ -561,10 +595,12 @@ class HomePageState extends State<HomePage> {
                       children: [
                         FittedBox(
                           fit: BoxFit.scaleDown,
-                          child: Text(
-                            _isObscured ? "Rp •••••" : "Rp${NumberFormat.decimalPattern('id').format(totalIncome)}",
-                            style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 14),
-                          ),
+                          child: isLoading
+                              ? const ShimmerWidget(width: 80, height: 14)
+                              : Text(
+                                  _isObscured ? "Rp •••••" : "Rp${NumberFormat.decimalPattern('id').format(totalIncome)}",
+                                  style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 14),
+                                ),
                         ),
                         const SizedBox(height: 5),
                         Row(
@@ -584,10 +620,12 @@ class HomePageState extends State<HomePage> {
                       children: [
                         FittedBox(
                           fit: BoxFit.scaleDown,
-                          child: Text(
-                            _isObscured ? "Rp •••••" : "Rp${NumberFormat.decimalPattern('id').format(totalExpense)}",
-                            style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 14),
-                          ),
+                          child: isLoading
+                              ? const ShimmerWidget(width: 80, height: 14)
+                              : Text(
+                                  _isObscured ? "Rp •••••" : "Rp${NumberFormat.decimalPattern('id').format(totalExpense)}",
+                                  style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 14),
+                                ),
                         ),
                         const SizedBox(height: 5),
                         Row(
@@ -702,7 +740,70 @@ class HomePageState extends State<HomePage> {
     );
   }
 
+  Widget _buildShimmerTransactionList() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: List.generate(2, (index) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Date shimmer header
+                const Padding(
+                  padding: EdgeInsets.only(left: 8, bottom: 8),
+                  child: ShimmerWidget(width: 100, height: 16),
+                ),
+                // Card container for transaction list group
+                Card(
+                  elevation: 1,
+                  color: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Column(
+                      children: List.generate(2, (itemIdx) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 10.0),
+                          child: Row(
+                            children: [
+                              // Icon round shimmer
+                              const ShimmerWidget(width: 40, height: 40, borderRadius: BorderRadius.all(Radius.circular(20))),
+                              const SizedBox(width: 12),
+                              // Title and subtitle shimmer
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const ShimmerWidget(width: 120, height: 14),
+                                    const SizedBox(height: 6),
+                                    const ShimmerWidget(width: 70, height: 10),
+                                  ],
+                                ),
+                              ),
+                              // Amount shimmer
+                              const ShimmerWidget(width: 80, height: 16),
+                            ],
+                          ),
+                        );
+                      }),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
   Widget _buildTransactionList() {
+    if (isLoading) {
+      return _buildShimmerTransactionList();
+    }
     final filtered = transaksiBulanIni.where((t) {
       final matchesSearch = t.keterangan.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           t.kategori.toLowerCase().contains(_searchQuery.toLowerCase());
@@ -1407,6 +1508,68 @@ class HomePageState extends State<HomePage> {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ⏳ Shimmer Loading Skeleton Screen Helper (No Packages)
+class ShimmerWidget extends StatefulWidget {
+  final double width;
+  final double height;
+  final BorderRadius borderRadius;
+
+  const ShimmerWidget({
+    super.key,
+    required this.width,
+    required this.height,
+    this.borderRadius = const BorderRadius.all(Radius.circular(8)),
+  });
+
+  @override
+  State<ShimmerWidget> createState() => _ShimmerWidgetState();
+}
+
+class _ShimmerWidgetState extends State<ShimmerWidget> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Container(
+          width: widget.width,
+          height: widget.height,
+          decoration: BoxDecoration(
+            borderRadius: widget.borderRadius,
+            gradient: LinearGradient(
+              colors: [
+                Colors.grey.shade300,
+                Colors.grey.shade100,
+                Colors.grey.shade300,
+              ],
+              stops: const [0.1, 0.5, 0.9],
+              begin: Alignment(-1.0 + _controller.value * 2, -0.3),
+              end: Alignment(1.0 + _controller.value * 2, 0.3),
+            ),
+          ),
+        );
+      },
     );
   }
 }
