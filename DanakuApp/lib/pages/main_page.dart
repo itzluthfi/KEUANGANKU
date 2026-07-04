@@ -137,6 +137,7 @@ class _MainPageState extends State<MainPage> {
                     ),
                     child: Lottie.asset(
                       'assets/icons/home-icon.json',
+                      key: ValueKey(currentIndex == 0),
                       width: 24,
                       height: 24,
                       animate: currentIndex == 0,
