@@ -3,6 +3,8 @@ import 'package:path/path.dart';
 import 'app_data.dart';
 import 'package:flutter/material.dart';
 import '../services/sync_service.dart';
+import '../services/notification_service.dart';
+import 'package:intl/intl.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
@@ -278,6 +280,36 @@ class DatabaseHelper {
 
     // Trigger pencadangan otomatis senyap di background jika user login
     SyncService.instance.triggerAutoBackup();
+
+    if (t.jenis.toLowerCase() == 'keluar' || t.jenis.toLowerCase() == 'pengeluaran') {
+      _checkBudgetNotification();
+    }
+  }
+
+  Future<void> _checkBudgetNotification() async {
+    final budgetStr = await getSetting('monthly_budget');
+    final budget = int.tryParse(budgetStr ?? '0') ?? 0;
+    if (budget <= 0) return;
+
+    final all = await fetchTransaksi();
+    final now = DateTime.now();
+    final currentMonthExpense = all
+        .where((tr) => tr.tanggal.month == now.month && tr.tanggal.year == now.year && (tr.jenis.toLowerCase() == 'keluar' || tr.jenis.toLowerCase() == 'pengeluaran'))
+        .fold(0, (sum, tr) => sum + tr.jumlah);
+
+    if (currentMonthExpense >= budget) {
+      await NotificationService.instance.showCustomNotification(
+        id: 999,
+        title: "🚨 Batas Anggaran Terlewati!",
+        body: "Total pengeluaran Anda bulan ini (Rp ${NumberFormat.decimalPattern('id').format(currentMonthExpense)}) telah melampaui limit anggaran bulanan (Rp ${NumberFormat.decimalPattern('id').format(budget)}).",
+      );
+    } else if (currentMonthExpense >= budget * 0.8) {
+      await NotificationService.instance.showCustomNotification(
+        id: 998,
+        title: "⚠️ Peringatan Batas Anggaran (80%)",
+        body: "Total pengeluaran Anda bulan ini (Rp ${NumberFormat.decimalPattern('id').format(currentMonthExpense)}) telah mencapai 80% dari limit anggaran bulanan (Rp ${NumberFormat.decimalPattern('id').format(budget)}).",
+      );
+    }
   }
 
   Future<List<Transaksi>> fetchTransaksi() async {

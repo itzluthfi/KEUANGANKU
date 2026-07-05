@@ -98,6 +98,43 @@ class NotificationService {
     }
   }
 
+  Future<void> showCustomNotification({
+    required int id,
+    required String title,
+    required String body,
+  }) async {
+    if (kIsWeb) return;
+    if (!(Platform.isAndroid || Platform.isIOS)) return;
+
+    if (!_isInitialized) await init();
+
+    try {
+      await _localNotifications.show(
+        id,
+        title,
+        body,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'budget_channel',
+            'Budget Notification',
+            channelDescription: 'Channel untuk peringatan anggaran bulanan',
+            importance: Importance.max,
+            priority: Priority.high,
+            playSound: true,
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
+        ),
+      );
+      debugPrint("Custom notification shown: id=$id");
+    } catch (e) {
+      debugPrint("Error showing custom notification: $e");
+    }
+  }
+
   Future<void> scheduleDailyNotification(int hour, int minute) async {
     if (kIsWeb) return;
     if (!(Platform.isAndroid || Platform.isIOS)) return;

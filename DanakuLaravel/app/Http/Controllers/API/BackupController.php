@@ -18,11 +18,25 @@ class BackupController extends Controller
 
         $user = $request->user();
 
+        // Idempotency / Double-Submit protection
+        $payloadHash = md5(json_encode($request->only(['transaksi', 'wallets', 'categories'])));
+        $cacheKey = 'backup_hash_' . $user->id;
+        $cachedHash = \Illuminate\Support\Facades\Cache::get($cacheKey);
+
+        if ($cachedHash === $payloadHash) {
+            return response()->json([
+                'message' => 'Data berhasil dicadangkan ke server (idempotent)!',
+                'backup_date' => now()->toIso8601String()
+            ], 200);
+        }
+
         // Menyimpan baru atau menimpa cadangan lama milik user ini
         $backup = Backup::updateOrCreate(
             ['user_id' => $user->id],
             ['data' => json_encode($request->all())]
         );
+
+        \Illuminate\Support\Facades\Cache::put($cacheKey, $payloadHash, 10);
 
         return response()->json([
             'message' => 'Data berhasil dicadangkan ke server!',

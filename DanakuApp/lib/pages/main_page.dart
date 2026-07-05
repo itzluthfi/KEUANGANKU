@@ -15,15 +15,38 @@ class MainPage extends StatefulWidget {
   State<MainPage> createState() => _MainPageState();
 }
 
-class _MainPageState extends State<MainPage> {
+class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   int currentIndex = 0;
   final GlobalKey<HomePageState> _homeKey = GlobalKey();
   bool _showPinLock = false;
+  DateTime? _pausedTime;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkPinLock());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      _pausedTime = DateTime.now();
+    } else if (state == AppLifecycleState.resumed) {
+      if (_pausedTime != null) {
+        final diff = DateTime.now().difference(_pausedTime!);
+        if (diff.inSeconds >= 30) {
+          _checkPinLock();
+        }
+      }
+      _pausedTime = null;
+    }
   }
 
   Future<void> _checkPinLock() async {

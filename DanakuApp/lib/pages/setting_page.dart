@@ -1322,91 +1322,6 @@ class _SettingPageState extends State<SettingPage> {
     );
   }
 
-}
-
-// Stateful Grid Menu Item to control Lottie animation speed and loop timing
-class GridMenuItem extends StatefulWidget {
-  final String? lottieAsset;
-  final IconData? icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const GridMenuItem({
-    super.key,
-    this.lottieAsset,
-    this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  State<GridMenuItem> createState() => _GridMenuItemState();
-}
-
-class _GridMenuItemState extends State<GridMenuItem> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    Color bgColor = Colors.pink.shade50;
-    Color iconColor = Colors.pink;
-    return InkWell(
-      onTap: widget.onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Card(
-        elevation: 1.5,
-        shadowColor: Colors.black12,
-        color: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: widget.lottieAsset != null ? const EdgeInsets.all(10) : const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: bgColor, shape: BoxShape.circle),
-              child: widget.lottieAsset != null
-                  ? SizedBox(
-                      width: 26,
-                      height: 26,
-                      child: ColorFiltered(
-                        colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
-                        child: Lottie.asset(
-                          widget.lottieAsset!,
-                          controller: _controller,
-                          onLoaded: (composition) {
-                            // Slow down duration of the loop to 2x composition duration to prevent glitching
-                            _controller.duration = composition.duration * 2.2;
-                            _controller.repeat();
-                          },
-                        ),
-                      ),
-                    )
-                  : Icon(widget.icon ?? Icons.help_outline, color: iconColor, size: 26),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              widget.label,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.black87),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   // Progres Bar untuk Budget limit bulanan
   Widget _buildBudgetProgressBar() {
     double ratio = _monthlyExpense / _monthlyBudget;
@@ -2274,6 +2189,90 @@ class _SyncProgressDialogState extends State<_SyncProgressDialog> {
                 ),
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Stateful Grid Menu Item to control Lottie animation speed and loop timing
+class GridMenuItem extends StatefulWidget {
+  final String? lottieAsset;
+  final IconData? icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const GridMenuItem({
+    super.key,
+    this.lottieAsset,
+    this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  State<GridMenuItem> createState() => _GridMenuItemState();
+}
+
+class _GridMenuItemState extends State<GridMenuItem> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    Color bgColor = Colors.pink.shade50;
+    Color iconColor = Colors.pink;
+    return InkWell(
+      onTap: widget.onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Card(
+        elevation: 1.5,
+        shadowColor: Colors.black12,
+        color: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: widget.lottieAsset != null ? const EdgeInsets.all(10) : const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: bgColor, shape: BoxShape.circle),
+              child: widget.lottieAsset != null
+                  ? SizedBox(
+                      width: 26,
+                      height: 26,
+                      child: ColorFiltered(
+                        colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
+                        child: Lottie.asset(
+                          widget.lottieAsset!,
+                          controller: _controller,
+                          onLoaded: (composition) {
+                            // Slow down duration of the loop to 2x composition duration to prevent glitching
+                            _controller.duration = composition.duration * 2.2;
+                            _controller.repeat();
+                          },
+                        ),
+                      ),
+                    )
+                  : Icon(widget.icon ?? Icons.help_outline, color: iconColor, size: 26),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              widget.label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.black87),
+            ),
           ],
         ),
       ),

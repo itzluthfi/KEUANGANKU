@@ -415,6 +415,46 @@ Output must be ONLY a valid JSON object matching the schema. Do not output any m
         ];
     }
 
+    public function metrics(Request $request)
+    {
+        $total = \App\Models\ApiLog::count();
+        
+        $features = \App\Models\ApiLog::select('feature', \DB::raw('count(*) as count'))
+            ->groupBy('feature')
+            ->get()
+            ->pluck('count', 'feature');
+            
+        $providers = \App\Models\ApiLog::select('provider')
+            ->selectRaw('count(*) as total')
+            ->selectRaw('sum(case when status = "success" then 1 else 0 end) as success')
+            ->selectRaw('sum(case when status = "failed" then 1 else 0 end) as failed')
+            ->selectRaw('avg(latency_ms) as avg_latency')
+            ->groupBy('provider')
+            ->get()
+            ->keyBy('provider')
+            ->map(function($row) {
+                return [
+                    'total' => (int) $row->total,
+                    'success' => (int) $row->success,
+                    'failed' => (int) $row->failed,
+                    'success_rate' => $row->total > 0 ? round(($row->success / $row->total) * 100, 2) . '%' : '0%',
+                    'avg_latency_ms' => round($row->avg_latency, 2),
+                ];
+            });
+
+        $recentErrors = \App\Models\ApiLog::where('status', 'failed')
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get(['provider', 'model_name', 'error_message', 'created_at']);
+
+        return response()->json([
+            'total_requests' => $total,
+            'by_feature' => $features,
+            'by_provider' => $providers,
+            'recent_errors' => $recentErrors
+        ]);
+    }
+
     private function logUsage($feature, $provider, $modelName, $status, $chars, $latencyMs, $errorMessage = null, $responseContent = null)
     {
         try {

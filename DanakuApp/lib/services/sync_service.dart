@@ -276,26 +276,85 @@ class SyncService {
 
       final db = await DatabaseHelper.instance.database;
 
-      // Gunakan Transaction SQLite agar aman dan cepat
+      // Gunakan Transaction SQLite agar aman, cepat, dan mencegah duplikasi
       await db.transaction((txn) async {
-        // Hapus isi tabel saat ini
-        await txn.delete('transaksi');
-        await txn.delete('wallets');
-        await txn.delete('categories');
-
-        // Masukkan data dompet hasil restore
+        // 1. Sinkronisasi & Merge Dompet
         for (var w in walletsList) {
-          await txn.insert('wallets', Map<String, dynamic>.from(w));
+          final wMap = Map<String, dynamic>.from(w);
+          final existing = await txn.query(
+            'wallets',
+            where: 'nama = ? AND book_id = ?',
+            whereArgs: [wMap['nama'], wMap['book_id']],
+          );
+          if (existing.isEmpty) {
+            await txn.insert('wallets', {
+              'book_id': wMap['book_id'],
+              'nama': wMap['nama'],
+              'saldo': wMap['saldo'],
+              'jenis': wMap['jenis'],
+              'icon_code': wMap['icon_code'],
+            });
+          } else {
+            // Update detail dompet dari cloud
+            await txn.update(
+              'wallets',
+              {
+                'saldo': wMap['saldo'],
+                'jenis': wMap['jenis'],
+                'icon_code': wMap['icon_code'],
+              },
+              where: 'nama = ? AND book_id = ?',
+              whereArgs: [wMap['nama'], wMap['book_id']],
+            );
+          }
         }
 
-        // Masukkan data transaksi hasil restore
-        for (var t in transaksiList) {
-          await txn.insert('transaksi', Map<String, dynamic>.from(t));
-        }
-
-        // Masukkan data kategori hasil restore
+        // 2. Sinkronisasi & Merge Kategori
         for (var c in categoriesList) {
-          await txn.insert('categories', Map<String, dynamic>.from(c));
+          final cMap = Map<String, dynamic>.from(c);
+          final existing = await txn.query(
+            'categories',
+            where: 'name = ? AND type = ? AND book_id = ?',
+            whereArgs: [cMap['name'], cMap['type'], cMap['book_id']],
+          );
+          if (existing.isEmpty) {
+            await txn.insert('categories', {
+              'book_id': cMap['book_id'],
+              'name': cMap['name'],
+              'type': cMap['type'],
+              'icon_code': cMap['icon_code'],
+            });
+          }
+        }
+
+        // 3. Sinkronisasi & Merge Transaksi (Deduplikasi cerdas berdasarkan data detail)
+        for (var t in transaksiList) {
+          final tMap = Map<String, dynamic>.from(t);
+          final existing = await txn.query(
+            'transaksi',
+            where: 'keterangan = ? AND jumlah = ? AND jenis = ? AND tanggal = ? AND walletNama = ? AND kategori = ? AND book_id = ?',
+            whereArgs: [
+              tMap['keterangan'],
+              tMap['jumlah'],
+              tMap['jenis'],
+              tMap['tanggal'],
+              tMap['walletNama'],
+              tMap['kategori'],
+              tMap['book_id'],
+            ],
+          );
+          if (existing.isEmpty) {
+            await txn.insert('transaksi', {
+              'book_id': tMap['book_id'],
+              'keterangan': tMap['keterangan'],
+              'jumlah': tMap['jumlah'],
+              'jenis': tMap['jenis'],
+              'tanggal': tMap['tanggal'],
+              'walletNama': tMap['walletNama'],
+              'kategori': tMap['kategori'],
+              'items_json': tMap['items_json'],
+            });
+          }
         }
       });
 

@@ -25,6 +25,7 @@ Route::post('/ai/parse-receipt', [AIController::class, 'parseReceipt']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/backup', [BackupController::class, 'backup']);
     Route::get('/restore', [BackupController::class, 'restore']);
+    Route::get('/ai/metrics', [AIController::class, 'metrics']);
     
     // Notifikasi & FCM
     Route::post('/save-fcm-token', [NotificationController::class, 'saveFcmToken']);
