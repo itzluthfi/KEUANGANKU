@@ -34,6 +34,7 @@ class HomePageState extends State<HomePage> {
   bool _showOnlineSuccessBanner = false;
   Timer? _successBannerTimer;
   bool isLoading = false;
+  int _monthlyBudget = 0;
 
   @override
   void initState() {
@@ -86,9 +87,13 @@ class HomePageState extends State<HomePage> {
     setState(() => isLoading = true);
     final allTransaksi = await DatabaseHelper.instance.fetchTransaksi();
     final allWallets = await DatabaseHelper.instance.fetchWallets();
+    final budgetStr = await DatabaseHelper.instance.getSetting('monthly_budget');
+    final budget = int.tryParse(budgetStr ?? "0") ?? 0;
+
     await Future.delayed(const Duration(milliseconds: 400));
     setState(() {
       AppData.wallets = allWallets;
+      _monthlyBudget = budget;
       transaksiBulanIni = allTransaksi.where((t) {
         return t.tanggal.month == selectedDate.month && t.tanggal.year == selectedDate.year;
       }).toList();
@@ -643,10 +648,73 @@ class HomePageState extends State<HomePage> {
                   ),
                 ],
               ),
+              if (_monthlyBudget > 0) ...[
+                const SizedBox(height: 15),
+                const Divider(height: 1, color: Colors.black12),
+                const SizedBox(height: 12),
+                _buildBudgetProgress(),
+              ],
             ],
           );
         }
       ),
+    );
+  }
+
+  Widget _buildBudgetProgress() {
+    int totalExpense = transaksiBulanIni
+        .where((t) => t.jenis.toLowerCase() == "keluar" || t.jenis.toLowerCase() == "pengeluaran")
+        .fold(0, (sum, t) => sum + t.jumlah);
+        
+    double percent = totalExpense / _monthlyBudget;
+    if (percent > 1.0) percent = 1.0;
+    bool isOver = totalExpense > _monthlyBudget;
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  isOver ? Icons.warning_amber_rounded : Icons.track_changes_rounded,
+                  size: 14,
+                  color: isOver ? Colors.red : Colors.pink,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  isOver ? "Melebihi Anggaran!" : "Anggaran Bulanan",
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: isOver ? Colors.red : Colors.grey.shade700,
+                  ),
+                ),
+              ],
+            ),
+            Text(
+              "Rp${NumberFormat.decimalPattern('id').format(totalExpense)} / Rp${NumberFormat.decimalPattern('id').format(_monthlyBudget)}",
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: isOver ? Colors.red : Colors.black87,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: percent,
+            minHeight: 6,
+            backgroundColor: Colors.grey.shade100,
+            valueColor: AlwaysStoppedAnimation<Color>(isOver ? Colors.red : const Color(0xFFFF528F)),
+          ),
+        ),
+      ],
     );
   }
 
