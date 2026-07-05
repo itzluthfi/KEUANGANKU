@@ -10,6 +10,7 @@ import '../services/notification_service.dart';
 import '../services/export_service.dart';
 import 'package:share_plus/share_plus.dart';
 import '../services/exchange_service.dart';
+import '../services/biometric_service.dart';
 import 'manage_category_page.dart';
 import 'manage_wallet_page.dart';
 import 'pin_lock_page.dart';
@@ -33,12 +34,23 @@ class _SettingPageState extends State<SettingPage> {
   int _monthlyExpense = 0;
   String _reminderTime = "20:00";
   bool _pinEnabled = false;
+  bool _biometricEnabled = false;
+  bool _biometricSupported = false;
+
 
   @override
   void initState() {
     super.initState();
     _checkLoginStatus();
     _loadCustomSettings();
+    _checkBiometricSupport();
+  }
+
+  Future<void> _checkBiometricSupport() async {
+    final supported = await BiometricService.instance.isBiometricSupported();
+    setState(() {
+      _biometricSupported = supported;
+    });
   }
 
   Future<void> _checkLoginStatus() async {
@@ -66,12 +78,14 @@ class _SettingPageState extends State<SettingPage> {
 
     // 4. Ambil status kunci PIN
     final pinEnabledStr = await DatabaseHelper.instance.getSetting('pin_enabled');
+    final biometricEnabledStr = await DatabaseHelper.instance.getSetting('biometric_enabled');
 
     setState(() {
       _monthlyBudget = budget;
       _reminderTime = reminder ?? "20:00";
       _monthlyExpense = expense;
       _pinEnabled = pinEnabledStr == 'true';
+      _biometricEnabled = biometricEnabledStr == 'true';
     });
   }
 
@@ -1075,13 +1089,32 @@ class _SettingPageState extends State<SettingPage> {
                         }
                       } else {
                         await DatabaseHelper.instance.saveSetting('pin_enabled', 'false');
+                        await DatabaseHelper.instance.saveSetting('biometric_enabled', 'false');
                         setDialogState(() {
                           _pinEnabled = false;
+                          _biometricEnabled = false;
                         });
                         _loadCustomSettings();
                       }
                     },
                   ),
+                  if (_pinEnabled && _biometricSupported) ...[
+                    const Divider(),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text("Kunci Sidik Jari / Wajah", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      subtitle: const Text("Gunakan sidik jari atau Face ID untuk masuk", style: TextStyle(fontSize: 11)),
+                      activeColor: Colors.pink,
+                      value: _biometricEnabled,
+                      onChanged: (val) async {
+                        await DatabaseHelper.instance.saveSetting('biometric_enabled', val ? 'true' : 'false');
+                        setDialogState(() {
+                          _biometricEnabled = val;
+                        });
+                        _loadCustomSettings();
+                      },
+                    ),
+                  ],
                   if (_pinEnabled) ...[
                     const Divider(),
                     ListTile(
@@ -1727,77 +1760,119 @@ class _ExchangeDialogState extends State<_ExchangeDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      title: const Row(
-        children: [
-          Icon(Icons.currency_exchange_rounded, color: Colors.pink),
-          SizedBox(width: 10),
-          Text("Kurs Mata Uang", style: TextStyle(fontWeight: FontWeight.bold)),
-        ],
-      ),
-      content: _loading
-          ? const SizedBox(
-              height: 150,
-              child: Center(child: CircularProgressIndicator(color: Colors.pink)),
-            )
-          : SingleChildScrollView(
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+      elevation: 10,
+      backgroundColor: Colors.transparent,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(25),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Pink Header Strip
+            Container(
+              height: 12,
+              decoration: const BoxDecoration(
+                color: Color(0xFFFF528F),
+                borderRadius: BorderRadius.only(topLeft: Radius.circular(25), topRight: Radius.circular(25)),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(24),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("Harga Tukar Live Rupiah (IDR):", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                  const SizedBox(height: 10),
-                  _buildRateTile("1 USD (Dolar AS)", usdToIdr, Colors.green),
-                  _buildRateTile("1 EUR (Euro)", eurToIdr, Colors.blue),
-                  _buildRateTile("1 SGD (Dolar Singapura)", sgdToIdr, Colors.purple),
-                  
-                  const Divider(height: 24),
-                  
-                  const Text("Kalkulator Konverter (USD ➡️ IDR):", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _inputController,
-                    keyboardType: TextInputType.number,
-                    onChanged: (_) => _doConversion(),
-                    decoration: InputDecoration(
-                      prefixText: "\$ ",
-                      labelText: "Jumlah USD",
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  Row(
+                    children: const [
+                      Icon(Icons.currency_exchange_rounded, color: Color(0xFFFF528F), size: 28),
+                      SizedBox(width: 10),
+                      Text(
+                        "Kurs Mata Uang",
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 15),
+                  _loading
+                      ? const SizedBox(
+                          height: 120,
+                          child: Center(child: CircularProgressIndicator(color: Color(0xFFFF528F))),
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text("Harga Tukar Live Rupiah (IDR):", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.grey)),
+                            const SizedBox(height: 8),
+                            _buildRateTile("1 USD (Dolar AS)", usdToIdr, Colors.green),
+                            _buildRateTile("1 EUR (Euro)", eurToIdr, Colors.blue),
+                            _buildRateTile("1 SGD (Dolar Singapura)", sgdToIdr, Colors.purple),
+                            
+                            const Divider(height: 24),
+                            
+                            const Text("Kalkulator Konverter (USD ➡️ IDR):", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.grey)),
+                            const SizedBox(height: 10),
+                            TextField(
+                              controller: _inputController,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              onChanged: (_) => _doConversion(),
+                              decoration: InputDecoration(
+                                prefixIcon: const Icon(Icons.attach_money_rounded, color: Colors.green),
+                                labelText: "Jumlah USD",
+                                labelStyle: const TextStyle(fontSize: 12),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: Color(0xFFFF528F), width: 2)),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              ),
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            ),
+                            if (_convertedResult > 0) ...[
+                              const SizedBox(height: 12),
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                width: double.infinity,
+                                decoration: BoxDecoration(color: Colors.pink.shade50, borderRadius: BorderRadius.circular(12)),
+                                child: Text(
+                                  "= Rp${NumberFormat.decimalPattern('id').format(_convertedResult.round())}",
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.pink),
+                                ),
+                              ),
+                            ]
+                          ],
+                        ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 44,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFF528F),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text("Tutup", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                     ),
                   ),
-                  if (_convertedResult > 0) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      width: double.infinity,
-                      decoration: BoxDecoration(color: Colors.pink.shade50, borderRadius: BorderRadius.circular(12)),
-                      child: Text(
-                        "= Rp${NumberFormat.decimalPattern('id').format(_convertedResult.round())}",
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.pink),
-                      ),
-                    ),
-                  ]
                 ],
               ),
             ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text("Tutup", style: TextStyle(color: Colors.pink, fontWeight: FontWeight.bold)),
+          ],
         ),
-      ],
+      ),
     );
   }
 
   Widget _buildRateTile(String currency, double rate, Color color) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(currency, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+          Text(currency, style: const TextStyle(fontSize: 12, color: Colors.black54, fontWeight: FontWeight.w500)),
           Text(
             "Rp${NumberFormat.decimalPattern('id').format(rate.round())}",
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: color),

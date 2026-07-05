@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 import 'pages/main_page.dart';
+import 'pages/splash_page.dart';
 import 'services/notification_service.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
@@ -47,7 +48,7 @@ class DanakuApp extends StatelessWidget {
         primarySwatch: Colors.blue,
       ),
       // Hapus Center dan SizedBox width: 400 agar aplikasi memenuhi layar
-      home: const MainPage(),
+      home: const SplashPage(),
     );
   }
 }

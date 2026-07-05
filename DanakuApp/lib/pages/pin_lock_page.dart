@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../data/database_helper.dart';
+import '../services/biometric_service.dart';
 
 class PinLockPage extends StatefulWidget {
   final bool isConfirming; 
@@ -15,6 +16,7 @@ class _PinLockPageState extends State<PinLockPage> {
   String _enteredCode = "";
   String? _savedPin;
   String _errorMessage = "";
+  bool _showBiometricButton = false;
 
   @override
   void initState() {
@@ -27,6 +29,24 @@ class _PinLockPageState extends State<PinLockPage> {
     setState(() {
       _savedPin = pin;
     });
+
+    final bioEnabled = await DatabaseHelper.instance.getSetting('biometric_enabled');
+    if (bioEnabled == 'true' && !widget.isConfirming && pin != null) {
+      final supported = await BiometricService.instance.isBiometricSupported();
+      if (supported) {
+        setState(() {
+          _showBiometricButton = true;
+        });
+        _triggerBiometricAuth();
+      }
+    }
+  }
+
+  Future<void> _triggerBiometricAuth() async {
+    final success = await BiometricService.instance.authenticate();
+    if (success && mounted) {
+      Navigator.pop(context, true);
+    }
   }
 
   void _onKeyPress(String value) {
@@ -210,7 +230,18 @@ class _PinLockPageState extends State<PinLockPage> {
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
                         // Clear button or empty placeholder
-                        const SizedBox(width: 70, height: 70),
+                        _showBiometricButton
+                            ? InkWell(
+                                onTap: _triggerBiometricAuth,
+                                borderRadius: BorderRadius.circular(40),
+                                child: Container(
+                                  width: 70,
+                                  height: 70,
+                                  alignment: Alignment.center,
+                                  child: const Icon(Icons.fingerprint_rounded, color: Colors.white, size: 36),
+                                ),
+                              )
+                            : const SizedBox(width: 70, height: 70),
                         _buildKeypadButton("0"),
                         InkWell(
                           onTap: _onDelete,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import '../data/app_data.dart';
@@ -236,29 +237,32 @@ class HomePageState extends State<HomePage> {
       context: context,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) {
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 10),
-            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
-            const SizedBox(height: 20),
-            const Text("Pilih Buku", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
-            ...books.map((b) => ListTile(
-              leading: const Icon(Icons.book, color: Colors.pink),
-              title: Text(b.nama, style: TextStyle(fontWeight: AppData.activeBookId == b.id ? FontWeight.bold : FontWeight.normal)),
-              trailing: AppData.activeBookId == b.id ? const Icon(Icons.check_circle, color: Colors.green) : null,
-              onTap: () {
-                setState(() {
-                  AppData.activeBookId = b.id!;
-                  AppData.activeBookName = b.nama;
-                });
-                loadData();
-                Navigator.pop(context);
-              },
-            )),
-            const SizedBox(height: 20),
-          ],
+        return SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 10),
+              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 20),
+              const Text("Pilih Buku", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+              ...books.map((b) => ListTile(
+                leading: const Icon(Icons.book, color: Colors.pink),
+                title: Text(b.nama, style: TextStyle(fontWeight: AppData.activeBookId == b.id ? FontWeight.bold : FontWeight.normal)),
+                trailing: AppData.activeBookId == b.id ? const Icon(Icons.check_circle, color: Colors.green) : null,
+                onTap: () {
+                  setState(() {
+                    AppData.activeBookId = b.id!;
+                    AppData.activeBookName = b.nama;
+                  });
+                  loadData();
+                  Navigator.pop(context);
+                },
+              )),
+              const SizedBox(height: 20),
+            ],
+          ),
         );
       }
     );
@@ -306,14 +310,22 @@ class HomePageState extends State<HomePage> {
     final screenSize = MediaQuery.of(context).size;
     final isTablet = screenSize.width > 600;
 
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+      statusBarBrightness: Brightness.dark,
+    ));
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F7F6),
+      backgroundColor: const Color(0xFFFF528F),
       body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 800),
-            child: Stack(
-              children: [
+        child: Container(
+          color: const Color(0xFFF4F7F6),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 800),
+              child: Stack(
+                children: [
                 // 1. Scrollable Content (Under the fixed header)
                 SingleChildScrollView(
                   child: Column(
@@ -387,7 +399,7 @@ class HomePageState extends State<HomePage> {
                                   icon: Icons.calendar_month,
                                   label: "Kalender",
                                   isActive: isCalendarView,
-                                  activeColor: Colors.blue,
+                                  activeColor: Colors.pink,
                                   onTap: () => setState(() => isCalendarView = true),
                                 ),
                               ],
@@ -456,6 +468,7 @@ class HomePageState extends State<HomePage> {
               ],
             ),
           ),
+        ),
         ),
       ),
     );

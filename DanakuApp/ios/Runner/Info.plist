@@ -66,6 +66,8 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Aplikasi membutuhkan akses biometrik untuk membuka kunci catatan keuangan Anda secara aman.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Aplikasi membutuhkan akses kamera untuk mengambil foto struk belanja.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
