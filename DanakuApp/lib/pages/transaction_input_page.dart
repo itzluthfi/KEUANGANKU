@@ -1346,76 +1346,80 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
   }
 
   Widget _buildTransferForm() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text("TRANSFER ANTAR DOMPET", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 12, letterSpacing: 0.8)),
-          const SizedBox(height: 20),
-          // Dompet Asal
-          InkWell(
-            onTap: _showWalletPicker,
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade200),
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.outbox_rounded, color: Colors.red, size: 24),
-                  const SizedBox(width: 15),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text("Dari Dompet (Sumber)", style: TextStyle(fontSize: 10, color: Colors.grey)),
-                        const SizedBox(height: 2),
-                        Text(selectedWallet?.nama ?? "Pilih Dompet", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      ],
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("TRANSFER ANTAR DOMPET", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 12, letterSpacing: 0.8)),
+            const SizedBox(height: 20),
+            // Dompet Asal
+            InkWell(
+              onTap: _showWalletPicker,
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade200),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.outbox_rounded, color: Colors.red, size: 24),
+                    const SizedBox(width: 15),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text("Dari Dompet (Sumber)", style: TextStyle(fontSize: 10, color: Colors.grey)),
+                          const SizedBox(height: 2),
+                          Text(selectedWallet?.nama ?? "Pilih Dompet", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        ],
+                      ),
                     ),
-                  ),
-                  const Icon(Icons.arrow_drop_down, color: Colors.pink),
-                ],
+                    const Icon(Icons.arrow_drop_down, color: Colors.pink),
+                  ],
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 15),
-          // Arrow divider
-          const Center(
-            child: Icon(Icons.arrow_downward_rounded, color: Colors.pink, size: 28),
-          ),
-          const SizedBox(height: 15),
-          // Dompet Tujuan
-          InkWell(
-            onTap: _showWalletTujuanPicker,
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade200),
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.inbox_rounded, color: Colors.green, size: 24),
-                  const SizedBox(width: 15),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text("Ke Dompet (Tujuan)", style: TextStyle(fontSize: 10, color: Colors.grey)),
-                        const SizedBox(height: 2),
-                        Text(selectedWalletTujuan?.nama ?? "Pilih Dompet Tujuan", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      ],
+            const SizedBox(height: 15),
+            // Arrow divider
+            const Center(
+              child: Icon(Icons.arrow_downward_rounded, color: Colors.pink, size: 28),
+            ),
+            const SizedBox(height: 15),
+            // Dompet Tujuan
+            InkWell(
+              onTap: _showWalletTujuanPicker,
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade200),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.inbox_rounded, color: Colors.green, size: 24),
+                    const SizedBox(width: 15),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text("Ke Dompet (Tujuan)", style: TextStyle(fontSize: 10, color: Colors.grey)),
+                          const SizedBox(height: 2),
+                          Text(selectedWalletTujuan?.nama ?? "Pilih Dompet Tujuan", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        ],
+                      ),
                     ),
-                  ),
-                  const Icon(Icons.arrow_drop_down, color: Colors.pink),
-                ],
+                    const Icon(Icons.arrow_drop_down, color: Colors.pink),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }

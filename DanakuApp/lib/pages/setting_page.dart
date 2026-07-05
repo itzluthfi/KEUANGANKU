@@ -494,55 +494,57 @@ class _SettingPageState extends State<SettingPage> {
     );
   }
 
-  // 2. Kategori Selection Sheet
   void _showCategorySelection() {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (context) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: 12),
-          Container(width: 40, height: 5, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10))),
-          const Padding(
-            padding: EdgeInsets.all(20),
-            child: Text("Kelola Kategori Transaksi", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          ),
-          ListTile(
-            leading: Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: Colors.red.shade50, shape: BoxShape.circle),
-              child: const Icon(Icons.arrow_circle_up_rounded, color: Colors.red),
+      builder: (context) => SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(width: 40, height: 5, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10))),
+            const Padding(
+              padding: EdgeInsets.all(20),
+              child: Text("Kelola Kategori Transaksi", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             ),
-            title: const Text("Kategori Pengeluaran", style: TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: const Text("Kelola kategori belanja, bensin, dll."),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const ManageCategoryPage(jenis: 'keluar')),
-              ).then((_) => _loadCustomSettings());
-            },
-          ),
-          const Divider(indent: 70),
-          ListTile(
-            leading: Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: Colors.green.shade50, shape: BoxShape.circle),
-              child: const Icon(Icons.arrow_circle_down_rounded, color: Colors.green),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(color: Colors.red.shade50, shape: BoxShape.circle),
+                child: const Icon(Icons.arrow_circle_up_rounded, color: Colors.red),
+              ),
+              title: const Text("Kategori Pengeluaran", style: TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: const Text("Kelola kategori belanja, bensin, dll."),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ManageCategoryPage(jenis: 'keluar')),
+                ).then((_) => _loadCustomSettings());
+              },
             ),
-            title: const Text("Kategori Pemasukan", style: TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: const Text("Kelola kategori gaji, uang saku, bonus, dll."),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const ManageCategoryPage(jenis: 'masuk')),
-              ).then((_) => _loadCustomSettings());
-            },
-          ),
-          const SizedBox(height: 20),
-        ],
+            const Divider(indent: 70),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(color: Colors.green.shade50, shape: BoxShape.circle),
+                child: const Icon(Icons.arrow_circle_down_rounded, color: Colors.green),
+              ),
+              title: const Text("Kategori Pemasukan", style: TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: const Text("Kelola kategori gaji, uang saku, bonus, dll."),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ManageCategoryPage(jenis: 'masuk')),
+                ).then((_) => _loadCustomSettings());
+              },
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }
@@ -979,16 +981,50 @@ class _SettingPageState extends State<SettingPage> {
 
   // 8. Tentang
   void _showAbout() {
-    showAboutDialog(
+    showDialog(
       context: context,
-      applicationName: "Danaku App",
-      applicationVersion: "v1.2.0 (Plus Menu)",
-      applicationIcon: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: const BoxDecoration(color: Color(0xFFFF528F), shape: BoxShape.circle),
-        child: const Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 28),
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Row(
+          children: const [
+            Icon(Icons.info_outline_rounded, color: Color(0xFFFF528F)),
+            SizedBox(width: 10),
+            Text("Tentang Danaku", style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(color: Color(0xFFFF528F), shape: BoxShape.circle),
+              child: const Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 36),
+            ),
+            const SizedBox(height: 15),
+            const Text(
+              "Danaku App",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              "Version 1.2.0 (Premium UI)",
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+            const SizedBox(height: 15),
+            const Text(
+              "© 2026 Danaku Developer Team. Dilengkapi modul pencadangan awan opsional dan alat pencatatan keuangan modern.",
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, height: 1.4, color: Colors.black87),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Tutup", style: TextStyle(color: Color(0xFFFF528F), fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
-      applicationLegalese: "© 2026 Danaku Developer Team. Dilengkapi modul pencadangan awan opsional dan alat pencatatan keuangan modern.",
     );
   }
 

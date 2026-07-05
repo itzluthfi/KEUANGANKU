@@ -132,6 +132,29 @@ class _ReportPageState extends State<ReportPage> {
     final screenSize = MediaQuery.of(context).size;
     final isTablet = screenSize.width > 600;
 
+    // Pre-calculate transaction filtering and grouping for sub-toggle and main content
+    final isExpense = _viewMode == 0 || _viewMode == 2 || _viewMode == 3;
+    final filtered = _transactions.where((t) {
+      final matchesType = isExpense
+          ? (t.jenis == "keluar" || t.jenis == "pengeluaran")
+          : (t.jenis == "masuk" || t.jenis == "pemasukan");
+      
+      final matchesCategory = _selectedCategory == "Semua" || t.kategori == _selectedCategory;
+      final matchesWallet = _selectedWallet == "Semua" || t.walletNama == _selectedWallet;
+      
+      return matchesType && matchesCategory && matchesWallet;
+    }).toList();
+    
+    Map<String, int> grouped = {};
+    int total = 0;
+    if (_viewMode < 4) {
+      for (var t in filtered) {
+        String key = _viewMode == 3 ? t.walletNama : t.kategori;
+        grouped[key] = (grouped[key] ?? 0) + t.jumlah;
+        total += t.jumlah;
+      }
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -209,9 +232,9 @@ class _ReportPageState extends State<ReportPage> {
                   child: Column(
                     children: [
                       const SizedBox(height: 10),
-                      _buildSubToggle(),
+                      _buildSubToggle(grouped, total, isExpense),
                       const SizedBox(height: 20),
-                      _buildMainContent(screenSize),
+                      _buildMainContent(screenSize, grouped, total, isExpense),
                       const SizedBox(height: 100),
                     ],
                   ),
@@ -332,7 +355,7 @@ class _ReportPageState extends State<ReportPage> {
     );
   }
 
-  Widget _buildSubToggle() {
+  Widget _buildSubToggle(Map<String, int> grouped, int total, bool isExpense) {
     if (_viewMode >= 4) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
@@ -401,36 +424,25 @@ class _ReportPageState extends State<ReportPage> {
               ),
             ),
           ),
+          const Spacer(),
+          // Space saving Lightbulb / Info Icon for AI Insight modal
+          if (total > 0)
+            IconButton(
+              icon: const Icon(Icons.lightbulb_rounded, color: Colors.amber, size: 24),
+              onPressed: () => _showInsightModal(grouped, total, isExpense),
+              tooltip: "Tampilkan Insight AI",
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildMainContent(Size screenSize) {
+  Widget _buildMainContent(Size screenSize, Map<String, int> grouped, int total, bool isExpense) {
 
     if (_viewMode == 4) return _buildTrendView(screenSize);
     
-    // Grouping logic
-    final isExpense = _viewMode == 0 || _viewMode == 2 || _viewMode == 3;
-    final filtered = _transactions.where((t) {
-      final matchesType = isExpense
-          ? (t.jenis == "keluar" || t.jenis == "pengeluaran")
-          : (t.jenis == "masuk" || t.jenis == "pemasukan");
-      
-      final matchesCategory = _selectedCategory == "Semua" || t.kategori == _selectedCategory;
-      final matchesWallet = _selectedWallet == "Semua" || t.walletNama == _selectedWallet;
-      
-      return matchesType && matchesCategory && matchesWallet;
-    }).toList();
-    
-    Map<String, int> grouped = {};
-    int total = 0;
-    for (var t in filtered) {
-      String key = _viewMode == 3 ? t.walletNama : t.kategori;
-      grouped[key] = (grouped[key] ?? 0) + t.jumlah;
-      total += t.jumlah;
-    }
-
     if (total == 0) return const Center(child: Padding(padding: EdgeInsets.all(50), child: Text("Tidak ada data", style: TextStyle(color: Colors.grey))));
 
     double chartSize = screenSize.width * 0.6;
@@ -438,7 +450,6 @@ class _ReportPageState extends State<ReportPage> {
 
     return Column(
       children: [
-        _buildAnalysisButton(grouped, total, isExpense),
         // Donut Chart
         SizedBox(
           height: chartSize + 120,
@@ -639,30 +650,6 @@ class _ReportPageState extends State<ReportPage> {
     );
   }
 
-
-  Widget _buildAnalysisButton(Map<String, int> grouped, int total, bool isExpense) {
-    if (grouped.isEmpty) return const SizedBox.shrink();
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          TextButton.icon(
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.pink,
-              backgroundColor: Colors.pink.shade50,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            ),
-            icon: const Icon(Icons.lightbulb_rounded, color: Colors.amber, size: 18),
-            label: const Text("Insight AI Bulan Ini", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-            onPressed: () => _showInsightModal(grouped, total, isExpense),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _showInsightModal(Map<String, int> grouped, int total, bool isExpense) {
     String highestCategory = "";
