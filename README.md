@@ -99,6 +99,12 @@
     Berkas installer APK siap pakai untuk HP Android berada di path:
     `DanakuApp/build/app/outputs/flutter-apk/app-release.apk`
 
+4.  **Menjalankan di Web dengan Menonaktifkan Keamanan Web (CORS Bypass untuk Pengujian)**:
+    Jika Anda menguji aplikasi di web browser (Chrome) dan mengalami pemblokiran CORS saat memanggil API backend di server VPS secara langsung, jalankan perintah berikut untuk menonaktifkan keamanan web (Chrome security sandbox) saat debugging:
+    ```bash
+    flutter run -d chrome --web-browser-flag "--disable-web-security" --web-browser-flag "--user-data-dir=C:\tmp\chrome_dev"
+    ```
+
 ---
 
 ## 📈 Alur Kerja Sistem Fallback AI & Logs
