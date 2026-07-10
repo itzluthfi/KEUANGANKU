@@ -25,7 +25,9 @@ class AIController extends Controller
         $text = $request->text;
         $startTime = microtime(true);
 
-        // Mekanisme Fallback: Gemini -> Groq -> Nvidia
+        // Fallback: Gemini -> Cerebras -> Groq -> Cloudflare -> Nvidia
+        
+        // 1. Gemini
         try {
             $data = $this->callGeminiParseText($text);
             $latency = (microtime(true) - $startTime) * 1000;
@@ -37,6 +39,20 @@ class AIController extends Controller
             Log::warning("Gemini parseText failed: " . $e->getMessage());
         }
 
+        // 2. Cerebras
+        $startTime = microtime(true);
+        try {
+            $data = $this->callCerebrasParseText($text);
+            $latency = (microtime(true) - $startTime) * 1000;
+            $this->logUsage('stt', 'cerebras', 'gemma-4-31b', 'success', strlen($text) + strlen(json_encode($data)), $latency, null, json_encode($data));
+            return response()->json($data);
+        } catch (\Exception $e) {
+            $latency = (microtime(true) - $startTime) * 1000;
+            $this->logUsage('stt', 'cerebras', 'gemma-4-31b', 'failed', strlen($text), $latency, $e->getMessage());
+            Log::warning("Cerebras parseText failed: " . $e->getMessage());
+        }
+
+        // 3. Groq
         $startTime = microtime(true);
         try {
             $data = $this->callGroqParseText($text);
@@ -49,6 +65,20 @@ class AIController extends Controller
             Log::warning("Groq parseText failed: " . $e->getMessage());
         }
 
+        // 4. Cloudflare
+        $startTime = microtime(true);
+        try {
+            $data = $this->callCloudflareParseText($text);
+            $latency = (microtime(true) - $startTime) * 1000;
+            $this->logUsage('stt', 'cloudflare', 'llama-3.1-8b-instruct-fp8', 'success', strlen($text) + strlen(json_encode($data)), $latency, null, json_encode($data));
+            return response()->json($data);
+        } catch (\Exception $e) {
+            $latency = (microtime(true) - $startTime) * 1000;
+            $this->logUsage('stt', 'cloudflare', 'llama-3.1-8b-instruct-fp8', 'failed', strlen($text), $latency, $e->getMessage());
+            Log::warning("Cloudflare parseText failed: " . $e->getMessage());
+        }
+
+        // 5. Nvidia
         $startTime = microtime(true);
         try {
             $data = $this->callNvidiaParseText($text);
@@ -80,7 +110,9 @@ class AIController extends Controller
         $mimeType = $imageFile->getMimeType();
         $startTime = microtime(true);
 
-        // Mekanisme Fallback: Gemini -> Groq -> Nvidia
+        // Fallback: Gemini -> Cloudflare -> Groq -> Nvidia
+
+        // 1. Gemini
         try {
             $data = $this->callGeminiParseReceipt($base64Image, $mimeType);
             $latency = (microtime(true) - $startTime) * 1000;
@@ -92,6 +124,20 @@ class AIController extends Controller
             Log::warning("Gemini parseReceipt failed: " . $e->getMessage());
         }
 
+        // 2. Cloudflare (Vision Model)
+        $startTime = microtime(true);
+        try {
+            $data = $this->callCloudflareParseReceipt($base64Image, $mimeType);
+            $latency = (microtime(true) - $startTime) * 1000;
+            $this->logUsage('ocr', 'cloudflare', 'llama-3.2-11b-vision-instruct', 'success', 1000 + strlen(json_encode($data)), $latency, null, json_encode($data));
+            return response()->json($data);
+        } catch (\Exception $e) {
+            $latency = (microtime(true) - $startTime) * 1000;
+            $this->logUsage('ocr', 'cloudflare', 'llama-3.2-11b-vision-instruct', 'failed', 1000, $latency, $e->getMessage());
+            Log::warning("Cloudflare parseReceipt failed: " . $e->getMessage());
+        }
+
+        // 3. Groq
         $startTime = microtime(true);
         try {
             $data = $this->callGroqParseReceipt($base64Image, $mimeType);
@@ -104,6 +150,7 @@ class AIController extends Controller
             Log::warning("Groq parseReceipt failed: " . $e->getMessage());
         }
 
+        // 4. Nvidia
         $startTime = microtime(true);
         try {
             $data = $this->callNvidiaParseReceipt($base64Image, $mimeType);
@@ -309,6 +356,102 @@ class AIController extends Controller
         }
 
         return $this->cleanResponse($response->json('choices.0.message.content'));
+    }
+
+    // =========================================================================
+    // 🌐 BAGIAN 4: IMPLEMENTASI CEREBRAS AI
+    // =========================================================================
+
+    private function callCerebrasParseText($text)
+    {
+        $apiKey = env('CEREBRAS_API_KEY');
+        if (empty($apiKey)) throw new \Exception("Cerebras API key is empty.");
+
+        $prompt = $this->getTextPrompt($text);
+
+        $response = Http::withHeaders([
+            'Authorization' => "Bearer {$apiKey}",
+            'Content-Type' => 'application/json',
+        ])->post("https://api.cerebras.ai/v1/chat/completions", [
+            'model' => 'gemma-4-31b',
+            'messages' => [
+                ['role' => 'user', 'content' => $prompt]
+            ],
+            'response_format' => ['type' => 'json_object']
+        ]);
+
+        if ($response->failed()) {
+            throw new \Exception("Cerebras API HTTP Error: " . $response->body());
+        }
+
+        return $this->cleanResponse($response->json('choices.0.message.content'));
+    }
+
+    // =========================================================================
+    // 🌐 BAGIAN 5: IMPLEMENTASI CLOUDFLARE WORKERS AI
+    // =========================================================================
+
+    private function callCloudflareParseText($text)
+    {
+        $accountId = env('CLOUDFLARE_ACCOUNT_ID');
+        $apiToken = env('CLOUDFLARE_API_TOKEN');
+        if (empty($accountId) || empty($apiToken)) {
+            throw new \Exception("Cloudflare Account ID or API Token is empty.");
+        }
+
+        $prompt = $this->getTextPrompt($text);
+
+        $response = Http::withHeaders([
+            'Authorization' => "Bearer {$apiToken}",
+            'Content-Type' => 'application/json',
+        ])->post("https://api.cloudflare.com/client/v4/accounts/{$accountId}/ai/run/@cf/meta/llama-3.1-8b-instruct-fp8", [
+            'messages' => [
+                ['role' => 'user', 'content' => $prompt]
+            ]
+        ]);
+
+        if ($response->failed()) {
+            throw new \Exception("Cloudflare API HTTP Error: " . $response->body());
+        }
+
+        $responseText = $response->json('result.response');
+        if (empty($responseText)) {
+            throw new \Exception("Cloudflare Workers AI returned empty result: " . $response->body());
+        }
+
+        return $this->cleanResponse($responseText);
+    }
+
+    private function callCloudflareParseReceipt($base64Image, $mimeType)
+    {
+        $accountId = env('CLOUDFLARE_ACCOUNT_ID');
+        $apiToken = env('CLOUDFLARE_API_TOKEN');
+        if (empty($accountId) || empty($apiToken)) {
+            throw new \Exception("Cloudflare Account ID or API Token is empty.");
+        }
+
+        $prompt = $this->getReceiptPrompt();
+        $rawImageBytes = base64_decode($base64Image);
+        $imageBytes = array_values(unpack('C*', $rawImageBytes));
+
+        $response = Http::withHeaders([
+            'Authorization' => "Bearer {$apiToken}",
+            'Content-Type' => 'application/json',
+        ])->post("https://api.cloudflare.com/client/v4/accounts/{$accountId}/ai/run/@cf/meta/llama-3.2-11b-vision-instruct", [
+            'prompt' => $prompt,
+            'image' => $imageBytes
+        ]);
+
+        if ($response->failed()) {
+            throw new \Exception("Cloudflare API HTTP Error: " . $response->body());
+        }
+
+        $responseText = $response->json('result.response');
+        if (empty($responseText)) {
+            throw new \Exception("Cloudflare Workers AI Vision returned empty result: " . $response->body());
+        }
+
+        return $this->cleanResponse($responseText);
     }
 
     // =========================================================================
