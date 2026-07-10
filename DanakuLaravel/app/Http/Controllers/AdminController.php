@@ -182,6 +182,25 @@ class AdminController extends Controller
             ->latest()
             ->paginate(15);
 
+        // 🔢 6. Estimasi Total Token Terpakai (keseluruhan & per model)
+        // Tabel hanya menyimpan characters_processed, jadi token dihitung
+        // dengan konversi standar ±4 karakter per token.
+        $totalChars = (int) ApiLog::sum('characters_processed');
+        $tokenTotal = (int) ceil($totalChars / 4);
+        $tokenTotalCalls = ApiLog::count();
+
+        $tokenPerModel = ApiLog::selectRaw("COALESCE(model_name, provider) as model")
+            ->selectRaw('SUM(characters_processed) as total_chars')
+            ->selectRaw('COUNT(*) as total_calls')
+            ->groupBy('model')
+            ->orderByDesc('total_chars')
+            ->get()
+            ->map(fn ($row) => [
+                'model' => $row->model,
+                'tokens' => (int) ceil($row->total_chars / 4),
+                'calls' => (int) $row->total_calls,
+            ]);
+
         return view('admin.ai_monitoring', compact(
             'limits',
             'usageToday',
@@ -190,7 +209,10 @@ class AdminController extends Controller
             'successRate',
             'chartLabels',
             'chartLatencies',
-            'allLogs'
+            'allLogs',
+            'tokenTotal',
+            'tokenTotalCalls',
+            'tokenPerModel'
         ));
     }
 

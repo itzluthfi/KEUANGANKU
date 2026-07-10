@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import '../data/database_helper.dart';
 import '../services/biometric_service.dart';
+import 'main_page.dart';
+import 'transaction_input_page.dart';
 
 class PinLockPage extends StatefulWidget {
   final bool isConfirming; 
   final String? setupPin; 
+  final String? initialRoute;
   
-  const PinLockPage({super.key, this.isConfirming = false, this.setupPin});
+  const PinLockPage({super.key, this.isConfirming = false, this.setupPin, this.initialRoute});
 
   @override
   State<PinLockPage> createState() => _PinLockPageState();
@@ -45,7 +48,7 @@ class _PinLockPageState extends State<PinLockPage> {
   Future<void> _triggerBiometricAuth() async {
     final success = await BiometricService.instance.authenticate();
     if (success && mounted) {
-      Navigator.pop(context, true);
+      _onSuccessUnlock();
     }
   }
 
@@ -93,7 +96,7 @@ class _PinLockPageState extends State<PinLockPage> {
     // Mode Pembukaan Kunci / Set Up awal
     if (_savedPin != null) {
       if (_enteredCode == _savedPin) {
-        if (mounted) Navigator.pop(context, true);
+        if (mounted) _onSuccessUnlock();
       } else {
         setState(() {
           _enteredCode = "";
@@ -109,11 +112,35 @@ class _PinLockPageState extends State<PinLockPage> {
         ),
       );
       if (confirm == true) {
-        if (mounted) Navigator.pop(context, true);
+        if (mounted) _onSuccessUnlock();
       } else {
         setState(() {
           _enteredCode = "";
         });
+      }
+    }
+  }
+
+  void _onSuccessUnlock() {
+    if (widget.initialRoute == '/add_transaction') {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const MainPage()),
+        (route) => false,
+      );
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const TransactionInputPage(initialJenis: 'keluar')),
+      );
+    } else {
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context, true);
+      } else {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const MainPage()),
+          (route) => false,
+        );
       }
     }
   }

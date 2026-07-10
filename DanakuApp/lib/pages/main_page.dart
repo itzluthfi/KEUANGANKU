@@ -9,7 +9,8 @@ import '../data/database_helper.dart';
 import 'package:lottie/lottie.dart';
 
 class MainPage extends StatefulWidget {
-  const MainPage({super.key});
+  final String? initialRoute;
+  const MainPage({super.key, this.initialRoute});
 
   @override
   State<MainPage> createState() => _MainPageState();
@@ -25,7 +26,16 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _checkPinLock());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkPinLock().then((_) {
+        if (!_showPinLock && widget.initialRoute == '/add_transaction') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const TransactionInputPage(initialJenis: 'keluar')),
+          );
+        }
+      });
+    });
   }
 
   @override

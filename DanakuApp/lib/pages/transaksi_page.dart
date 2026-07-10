@@ -366,6 +366,25 @@ class _TransaksiPageState extends State<TransaksiPage> {
               Navigator.pop(context);
               await DatabaseHelper.instance.deleteTransaksi(t);
               _loadAllData();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).clearSnackBars();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text("Transaksi berhasil dihapus"),
+                    action: SnackBarAction(
+                      label: "URUNGKAN",
+                      textColor: Colors.pink.shade100,
+                      onPressed: () async {
+                        await DatabaseHelper.instance.insertTransaksi(t);
+                        _loadAllData();
+                      },
+                    ),
+                    duration: const Duration(seconds: 5),
+                    behavior: SnackBarBehavior.floating,
+                    backgroundColor: Colors.black87,
+                  ),
+                );
+              }
             }, 
             child: const Text("Ya, Hapus", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
           ),

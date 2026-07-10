@@ -229,6 +229,31 @@ class SyncService {
     }
   }
 
+  Future<Map<String, dynamic>?> fetchBackupPreview(String email) async {
+    String? jsonString;
+    if (useRealServer) {
+      try {
+        final token = await DatabaseHelper.instance.getSetting('auth_token');
+        final response = await http.get(
+          Uri.parse('$laravelBaseUrl/restore'),
+          headers: {'Authorization': 'Bearer $token'},
+        );
+        if (response.statusCode == 200) {
+          final responseData = jsonDecode(response.body);
+          return responseData['data'] as Map<String, dynamic>;
+        }
+      } catch (e) {
+        debugPrint("Error fetching backup preview: $e");
+      }
+    } else {
+      jsonString = await DatabaseHelper.instance.getSetting('user_backup_$email');
+      if (jsonString != null) {
+        return jsonDecode(jsonString) as Map<String, dynamic>;
+      }
+    }
+    return null;
+  }
+
   /// Memulihkan (Restore) data cadangan terakhir dari Awan dan menimpa database lokal
   Future<bool> restoreData(String email) async {
     String? jsonString;

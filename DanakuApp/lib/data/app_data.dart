@@ -102,6 +102,8 @@ class Transaksi {
   final String walletNama;
   final String kategori;
   final String? itemsJson;
+  final String? receiptPath; // path foto struk di penyimpanan lokal (offline)
+  final String? receiptUrl; // URL foto struk di server (online)
 
   Transaksi({
     this.id,
@@ -113,6 +115,8 @@ class Transaksi {
     required this.walletNama,
     required this.kategori,
     this.itemsJson,
+    this.receiptPath,
+    this.receiptUrl,
   });
 
   factory Transaksi.fromMap(Map<String, dynamic> map) {
@@ -126,6 +130,8 @@ class Transaksi {
       walletNama: map['walletNama'] ?? '',
       kategori: map['kategori'] ?? '',
       itemsJson: map['items_json'],
+      receiptPath: map['receipt_path'],
+      receiptUrl: map['receipt_url'],
     );
   }
 
@@ -140,7 +146,37 @@ class Transaksi {
       'walletNama': walletNama,
       'kategori': kategori,
       'items_json': itemsJson,
+      'receipt_path': receiptPath,
+      'receipt_url': receiptUrl,
     };
+  }
+
+  Transaksi copyWith({
+    int? id,
+    int? bookId,
+    String? keterangan,
+    int? jumlah,
+    String? jenis,
+    DateTime? tanggal,
+    String? walletNama,
+    String? kategori,
+    String? itemsJson,
+    String? receiptPath,
+    String? receiptUrl,
+  }) {
+    return Transaksi(
+      id: id ?? this.id,
+      bookId: bookId ?? this.bookId,
+      keterangan: keterangan ?? this.keterangan,
+      jumlah: jumlah ?? this.jumlah,
+      jenis: jenis ?? this.jenis,
+      tanggal: tanggal ?? this.tanggal,
+      walletNama: walletNama ?? this.walletNama,
+      kategori: kategori ?? this.kategori,
+      itemsJson: itemsJson ?? this.itemsJson,
+      receiptPath: receiptPath ?? this.receiptPath,
+      receiptUrl: receiptUrl ?? this.receiptUrl,
+    );
   }
 }
 
@@ -174,7 +210,7 @@ class TransactionCategory {
 
 class AppData {
   static int activeBookId = 1;
-  static String activeBookName = "catatan mada";
+  static String activeBookName = "Buku Utama";
 
   static List<Wallet> wallets = [
     Wallet(nama: "Utama", saldo: 0, jenis: "Akun Virtual", icon: Icons.account_balance_wallet),

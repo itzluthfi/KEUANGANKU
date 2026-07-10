@@ -4,6 +4,7 @@ import 'dart:math' as Math;
 import 'dart:ui' as ui;
 import '../data/app_data.dart';
 import '../data/database_helper.dart';
+import '../services/pdf_service.dart';
 
 class ReportPage extends StatefulWidget {
   const ReportPage({super.key});
@@ -17,39 +18,49 @@ class _ReportPageState extends State<ReportPage> {
   bool _isTrendMode = true; // true: Tren, false: Aset
   final String _groupBy = "Kategori"; // "Kategori" or "Akun"
   DateTime _selectedMonth = DateTime.now();
+  DateTimeRange? _selectedDateRange;
   List<Transaksi> _transactions = [];
   List<Wallet> _wallets = [];
   String _selectedCategory = "Semua";
   String _selectedWallet = "Semua";
-
-  @override
-  void initState() {
-    super.initState();
-    _loadData();
-  }
-
-  Future<void> _loadData() async {
-    final all = await DatabaseHelper.instance.fetchTransaksi();
-    final allWallets = await DatabaseHelper.instance.fetchWallets();
-    setState(() {
-      _transactions = all.where((t) => t.tanggal.month == _selectedMonth.month && t.tanggal.year == _selectedMonth.year).toList();
-      _wallets = allWallets;
-    });
-  }
-
-  void _prevMonth() {
-    setState(() {
-      _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month - 1);
-      _loadData();
-    });
-  }
-
-  void _nextMonth() {
-    setState(() {
-      _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1);
-      _loadData();
-    });
-  }
+ 
+   @override
+   void initState() {
+     super.initState();
+     _loadData();
+   }
+ 
+   Future<void> _loadData() async {
+     final all = await DatabaseHelper.instance.fetchTransaksi();
+     final allWallets = await DatabaseHelper.instance.fetchWallets();
+     setState(() {
+       if (_selectedDateRange != null) {
+         final start = DateTime(_selectedDateRange!.start.year, _selectedDateRange!.start.month, _selectedDateRange!.start.day);
+         final end = DateTime(_selectedDateRange!.end.year, _selectedDateRange!.end.month, _selectedDateRange!.end.day, 23, 59, 59);
+         _transactions = all.where((t) => t.tanggal.isAfter(start.subtract(const Duration(seconds: 1))) && 
+                                         t.tanggal.isBefore(end.add(const Duration(seconds: 1)))).toList();
+       } else {
+         _transactions = all.where((t) => t.tanggal.month == _selectedMonth.month && t.tanggal.year == _selectedMonth.year).toList();
+       }
+       _wallets = allWallets;
+     });
+   }
+ 
+   void _prevMonth() {
+     setState(() {
+       _selectedDateRange = null;
+       _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month - 1);
+       _loadData();
+     });
+   }
+ 
+   void _nextMonth() {
+     setState(() {
+       _selectedDateRange = null;
+       _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1);
+       _loadData();
+     });
+   }
 
   void _showMonthPicker() {
     showDialog(
@@ -161,6 +172,36 @@ class _ReportPageState extends State<ReportPage> {
         backgroundColor: const Color(0xFFFF528F),
         elevation: 0,
         leading: const Icon(Icons.menu_book, color: Colors.white),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
+            tooltip: "Ekspor PDF",
+            onPressed: () async {
+              if (_transactions.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Tidak ada transaksi untuk diekspor"), behavior: SnackBarBehavior.floating),
+                );
+                return;
+              }
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) => const Center(child: CircularProgressIndicator(color: Color(0xFFFF528F))),
+              );
+              try {
+                await PdfService.instance.generateMonthlyReport(_transactions, _selectedMonth);
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Gagal ekspor PDF: $e"), behavior: SnackBarBehavior.floating, backgroundColor: Colors.red),
+                  );
+                }
+              } finally {
+                if (mounted) Navigator.pop(context);
+              }
+            },
+          ),
+        ],
         title: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -175,12 +216,70 @@ class _ReportPageState extends State<ReportPage> {
               ),
             ),
             GestureDetector(
-              onTap: _showMonthPicker,
+              onTap: () async {
+                final choice = await showModalBottomSheet<String>(
+                  context: context,
+                  shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+                  builder: (context) => Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(height: 12),
+                      Container(width: 40, height: 5, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10))),
+                      ListTile(
+                        leading: const Icon(Icons.calendar_month, color: Color(0xFFFF528F)),
+                        title: const Text("Pilih Bulan", style: TextStyle(fontWeight: FontWeight.bold)),
+                        onTap: () => Navigator.pop(context, "month"),
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: const Icon(Icons.date_range, color: Color(0xFFFF528F)),
+                        title: const Text("Pilih Rentang Tanggal", style: TextStyle(fontWeight: FontWeight.bold)),
+                        onTap: () => Navigator.pop(context, "range"),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                  ),
+                );
+
+                if (choice == "month") {
+                  _showMonthPicker();
+                } else if (choice == "range") {
+                  final picked = await showDateRangePicker(
+                    context: context,
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime(2030),
+                    initialDateRange: _selectedDateRange,
+                    builder: (context, child) {
+                      return Theme(
+                        data: Theme.of(context).copyWith(
+                          colorScheme: const ColorScheme.light(
+                            primary: Color(0xFFFF528F),
+                            onPrimary: Colors.white,
+                            onSurface: Colors.black87,
+                          ),
+                        ),
+                        child: child!,
+                      );
+                    },
+                  );
+                  if (picked != null) {
+                    setState(() {
+                      _selectedDateRange = picked;
+                      _loadData();
+                    });
+                  }
+                }
+              },
               behavior: HitTestBehavior.opaque,
               child: Row(
                 children: [
-                  Text(DateFormat('M/yyyy').format(_selectedMonth), style: const TextStyle(color: Colors.white, fontSize: 16)),
-                  const Icon(Icons.arrow_drop_down, color: Colors.white),
+                  Text(
+                    _selectedDateRange == null
+                        ? DateFormat('M/yyyy').format(_selectedMonth)
+                        : "${DateFormat('d MMM', 'id').format(_selectedDateRange!.start)} - ${DateFormat('d MMM', 'id').format(_selectedDateRange!.end)}",
+                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                  ),
+                  const Icon(Icons.arrow_drop_down, color: Colors.white, size: 18),
                 ],
               ),
             ),
@@ -252,7 +351,7 @@ class _ReportPageState extends State<ReportPage> {
     return GestureDetector(
       onTap: () => setState(() => _viewMode = index),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         margin: const EdgeInsets.symmetric(horizontal: 4),
         decoration: BoxDecoration(
           color: isActive ? Colors.white : Colors.white.withAlpha(50),
@@ -262,10 +361,15 @@ class _ReportPageState extends State<ReportPage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, color: isActive ? Colors.pink : Colors.white, size: 18),
-            if (isActive) ...[
-              const SizedBox(width: 5),
-              Text(label, style: const TextStyle(color: Colors.pink, fontWeight: FontWeight.bold, fontSize: 11)),
-            ]
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: TextStyle(
+                color: isActive ? Colors.pink : Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 11,
+              ),
+            ),
           ],
         ),
       ),

@@ -109,28 +109,135 @@
     .provider-groq { background-color: #4A90E2; }
     .provider-nvidia { background-color: #2ECC71; }
     
-    .pagination {
+    /* Token Usage Summary */
+    .token-summary {
         display: flex;
-        list-style: none;
-        gap: 8px;
-        justify-content: center;
-        margin-top: 20px;
-    }
-    .pagination li a, .pagination li span {
-        padding: 8px 14px;
-        border-radius: 8px;
+        flex-wrap: wrap;
+        gap: 20px;
         background: white;
-        color: #FF528F;
-        text-decoration: none;
-        font-weight: 600;
-        font-size: 12px;
-        border: 1px solid rgba(255, 82, 143, 0.1);
+        padding: 24px;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.02);
+        border: 1px solid rgba(0, 0, 0, 0.03);
+        margin-bottom: 30px;
     }
-    .pagination li.active span {
-        background: #FF528F;
+    .token-total-box {
+        flex: 1;
+        min-width: 240px;
+        background: linear-gradient(135deg, #FF528F, #FF7A9F);
+        border-radius: 16px;
+        padding: 24px;
         color: white;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+    .token-total-box .token-label {
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        opacity: 0.85;
+        margin-bottom: 8px;
+    }
+    .token-total-box .token-value {
+        font-size: 32px;
+        font-weight: 800;
+        line-height: 1.1;
+    }
+    .token-total-box .token-sub {
+        font-size: 11px;
+        font-weight: 600;
+        opacity: 0.8;
+        margin-top: 8px;
+    }
+    .token-model-list {
+        flex: 2;
+        min-width: 300px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 12px;
+    }
+    .token-model-row .token-model-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 5px;
+    }
+    .token-model-row .token-model-name {
+        font-size: 12px;
+        font-weight: 700;
+        color: #444;
+    }
+    .token-model-row .token-model-count {
+        font-size: 11px;
+        font-weight: 700;
+        color: #FF528F;
+    }
+    .token-model-row .token-model-count small {
+        color: #AAA;
+        font-weight: 600;
+    }
+    .token-bar-bg {
+        background: #F5F5F5;
+        height: 7px;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .token-bar-fill {
+        height: 100%;
+        border-radius: 4px;
+        background: linear-gradient(90deg, #FF528F, #FF7A9F);
+        transition: width 0.5s ease;
+    }
+
+    .clickable-cell {
+        cursor: pointer;
+        text-decoration: underline;
+        font-family: monospace;
+        font-size: 11px;
     }
 </style>
+
+<!-- Token Usage Summary -->
+<div class="token-summary">
+    <div class="token-total-box">
+        <div class="token-label"><i class="fa-solid fa-coins"></i> Total Token Terpakai (Estimasi)</div>
+        <div class="token-value">
+            @if($tokenTotal >= 1000)
+                {{ number_format($tokenTotal / 1000, 1, ',', '.') }} <span style="font-size:16px;">rb token</span>
+            @else
+                {{ number_format($tokenTotal, 0, ',', '.') }} <span style="font-size:16px;">token</span>
+            @endif
+        </div>
+        <div class="token-sub">
+            {{ number_format($tokenTotal, 0, ',', '.') }} token &bull; {{ number_format($tokenTotalCalls, 0, ',', '.') }} panggilan API &bull; estimasi &plusmn;4 karakter/token
+        </div>
+    </div>
+    <div class="token-model-list">
+        @forelse($tokenPerModel as $tm)
+            @php
+                $maxTokens = max(1, $tokenPerModel->max('tokens'));
+                $barPercent = min(100, ($tm['tokens'] / $maxTokens) * 100);
+            @endphp
+            <div class="token-model-row">
+                <div class="token-model-head">
+                    <span class="token-model-name">{{ $tm['model'] }}</span>
+                    <span class="token-model-count">
+                        {{ number_format($tm['tokens'], 0, ',', '.') }} token
+                        <small>({{ number_format($tm['calls'], 0, ',', '.') }} panggilan)</small>
+                    </span>
+                </div>
+                <div class="token-bar-bg">
+                    <div class="token-bar-fill" style="width: {{ $barPercent }}%;"></div>
+                </div>
+            </div>
+        @empty
+            <div style="text-align:center; color:#999; font-size:13px;">Belum ada penggunaan token terekam.</div>
+        @endforelse
+    </div>
+</div>
 
 <!-- Quota Cards -->
 <div class="quota-grid">
@@ -306,14 +413,22 @@
                         <td><span class="provider-pill provider-{{ strtolower($log->provider) }}">{{ $log->model_name ?? $log->provider }}</span></td>
                         <td><span class="badge {{ $log->status === 'success' ? 'badge-success' : 'badge-danger' }}">{{ $log->status }}</span></td>
                         <td><strong>{{ number_format($log->latency_ms) }} ms</strong></td>
-                        <td style="color:#C62828; font-family: monospace; font-size: 11px;">
-                            {{ $log->error_message ? Str::limit($log->error_message, 45) : '-' }}
+                        <td>
+                            @if($log->error_message)
+                                <span class="clickable-cell" style="color:#C62828;"
+                                      onclick="showLogDetailModal(this, 'Detail Pesan Error')"
+                                      data-content="{{ $log->error_message }}">
+                                    {{ Str::limit($log->error_message, 45) }}
+                                </span>
+                            @else
+                                -
+                            @endif
                         </td>
                         <td>
                             @if($log->response_content)
-                                <span style="cursor: pointer; text-decoration: underline; color: #1E88E5; font-family: monospace; font-size: 11px;" 
-                                      onclick="showResponseModal(this)" 
-                                      data-response="{{ $log->response_content }}">
+                                <span class="clickable-cell" style="color:#1E88E5;"
+                                      onclick="showLogDetailModal(this, 'Detail Respon AI')"
+                                      data-content="{{ $log->response_content }}">
                                     {{ Str::limit($log->response_content, 35) }}
                                 </span>
                             @else
@@ -333,20 +448,20 @@
 </div>
 
 <script>
-function showResponseModal(element) {
-    const rawJson = element.getAttribute('data-response');
-    let formattedJson = rawJson;
+function showLogDetailModal(element, title) {
+    const rawContent = element.getAttribute('data-content');
+    let formattedContent = rawContent;
     try {
-        const parsed = JSON.parse(rawJson);
-        formattedJson = JSON.stringify(parsed, null, 4);
+        const parsed = JSON.parse(rawContent);
+        formattedContent = JSON.stringify(parsed, null, 4);
     } catch (e) {
         // Not JSON
     }
-    
+
     Swal.fire({
-        title: 'Detail Respon AI',
-        html: '<pre style="text-align: left; background: #f4f6f7; padding: 12px; border-radius: 8px; font-size: 11px; overflow-x: auto; max-height: 400px; font-family: monospace; white-space: pre-wrap; word-wrap: break-word;">' + 
-              escapeHtml(formattedJson) + 
+        title: title,
+        html: '<pre style="text-align: left; background: #f4f6f7; padding: 12px; border-radius: 8px; font-size: 11px; overflow-x: auto; max-height: 400px; font-family: monospace; white-space: pre-wrap; word-wrap: break-word;">' +
+              escapeHtml(formattedContent) +
               '</pre>',
         confirmButtonText: 'Tutup',
         confirmButtonColor: '#FF528F',

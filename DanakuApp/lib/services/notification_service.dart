@@ -135,6 +135,18 @@ class NotificationService {
     }
   }
 
+  Future<void> cancelDailyNotification() async {
+    if (kIsWeb) return;
+    if (!(Platform.isAndroid || Platform.isIOS)) return;
+    if (!_isInitialized) await init();
+    try {
+      await _localNotifications.cancel(100);
+      debugPrint("Daily notification successfully cancelled.");
+    } catch (e) {
+      debugPrint("Error cancelling daily notification: $e");
+    }
+  }
+
   Future<void> scheduleDailyNotification(int hour, int minute) async {
     if (kIsWeb) return;
     if (!(Platform.isAndroid || Platform.isIOS)) return;

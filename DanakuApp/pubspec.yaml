@@ -53,6 +53,7 @@ dependencies:
   firebase_core: any
   firebase_messaging: any
   local_auth: ^2.1.8
+  home_widget: ^0.9.2+1
 
 
 dev_dependencies:

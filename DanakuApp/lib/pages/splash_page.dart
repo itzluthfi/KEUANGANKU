@@ -5,7 +5,8 @@ import 'pin_lock_page.dart';
 import '../data/database_helper.dart';
 
 class SplashPage extends StatefulWidget {
-  const SplashPage({super.key});
+  final String? initialRoute;
+  const SplashPage({super.key, this.initialRoute});
 
   @override
   State<SplashPage> createState() => _SplashPageState();
@@ -66,7 +67,7 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
-          builder: (context) => const PinLockPage(),
+          builder: (context) => PinLockPage(initialRoute: widget.initialRoute),
           settings: const RouteSettings(name: '/pin-lock'),
         ),
         (route) => false,
@@ -75,7 +76,7 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
       // Langsung masuk ke halaman utama jika PIN tidak aktif
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (context) => const MainPage()),
+        MaterialPageRoute(builder: (context) => MainPage(initialRoute: widget.initialRoute)),
         (route) => false,
       );
     }

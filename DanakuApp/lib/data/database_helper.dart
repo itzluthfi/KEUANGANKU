@@ -5,6 +5,9 @@ import 'package:flutter/material.dart';
 import '../services/sync_service.dart';
 import '../services/notification_service.dart';
 import 'package:intl/intl.dart';
+import 'package:home_widget/home_widget.dart';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
@@ -21,7 +24,7 @@ class DatabaseHelper {
   Future<Database> _initDB(String filePath) async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
-    return await openDatabase(path, version: 4, onCreate: _createDB, onUpgrade: _upgradeDB);
+    return await openDatabase(path, version: 6, onCreate: _createDB, onUpgrade: _upgradeDB);
   }
 
   Future _createDB(Database db, int version) async {
@@ -42,7 +45,9 @@ class DatabaseHelper {
       tanggal TEXT,
       walletNama TEXT,
       kategori TEXT,
-      items_json TEXT
+      items_json TEXT,
+      receipt_path TEXT,
+      receipt_url TEXT
     )
     ''');
 
@@ -86,6 +91,42 @@ class DatabaseHelper {
       interval TEXT,
       nextDueDate TEXT,
       isActive INTEGER DEFAULT 1
+    )
+    ''');
+
+    await db.execute('''
+    CREATE TABLE IF NOT EXISTS category_budgets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      book_id INTEGER DEFAULT 1,
+      kategori TEXT UNIQUE,
+      limit_jumlah INTEGER
+    )
+    ''');
+
+    await db.execute('''
+    CREATE TABLE IF NOT EXISTS debts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      book_id INTEGER DEFAULT 1,
+      tipe TEXT,
+      kontak TEXT,
+      keterangan TEXT,
+      jumlah INTEGER,
+      terbayar INTEGER DEFAULT 0,
+      tanggal TEXT,
+      jatuh_tempo TEXT,
+      status TEXT
+    )
+    ''');
+
+    await db.execute('''
+    CREATE TABLE IF NOT EXISTS goals (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      book_id INTEGER DEFAULT 1,
+      nama TEXT,
+      target_jumlah INTEGER,
+      terkumpul INTEGER DEFAULT 0,
+      jatuh_tempo TEXT,
+      status TEXT
     )
     ''');
 
@@ -154,6 +195,55 @@ class DatabaseHelper {
       } catch (e) {
         // Column might already exist
       }
+    }
+    if (oldVersion < 5) {
+      try {
+        await db.execute('ALTER TABLE transaksi ADD COLUMN receipt_path TEXT');
+      } catch (e) {
+        // Column might already exist
+      }
+      try {
+        await db.execute('ALTER TABLE transaksi ADD COLUMN receipt_url TEXT');
+      } catch (e) {
+        // Column might already exist
+      }
+    }
+    if (oldVersion < 6) {
+      await db.execute('''
+      CREATE TABLE IF NOT EXISTS category_budgets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        book_id INTEGER DEFAULT 1,
+        kategori TEXT UNIQUE,
+        limit_jumlah INTEGER
+      )
+      ''');
+
+      await db.execute('''
+      CREATE TABLE IF NOT EXISTS debts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        book_id INTEGER DEFAULT 1,
+        tipe TEXT,
+        kontak TEXT,
+        keterangan TEXT,
+        jumlah INTEGER,
+        terbayar INTEGER DEFAULT 0,
+        tanggal TEXT,
+        jatuh_tempo TEXT,
+        status TEXT
+      )
+      ''');
+
+      await db.execute('''
+      CREATE TABLE IF NOT EXISTS goals (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        book_id INTEGER DEFAULT 1,
+        nama TEXT,
+        target_jumlah INTEGER,
+        terkumpul INTEGER DEFAULT 0,
+        jatuh_tempo TEXT,
+        status TEXT
+      )
+      ''');
     }
   }
 
@@ -283,7 +373,9 @@ class DatabaseHelper {
 
     if (t.jenis.toLowerCase() == 'keluar' || t.jenis.toLowerCase() == 'pengeluaran') {
       _checkBudgetNotification();
+      _checkCategoryBudgetNotification(t.kategori);
     }
+    updateHomeWidgetData();
   }
 
   Future<void> _checkBudgetNotification() async {
@@ -309,6 +401,41 @@ class DatabaseHelper {
         title: "⚠️ Peringatan Batas Anggaran (80%)",
         body: "Total pengeluaran Anda bulan ini (Rp ${NumberFormat.decimalPattern('id').format(currentMonthExpense)}) telah mencapai 80% dari limit anggaran bulanan (Rp ${NumberFormat.decimalPattern('id').format(budget)}).",
       );
+    }
+  }
+
+  Future<void> _checkCategoryBudgetNotification(String kategori) async {
+    final db = await database;
+    final List<Map<String, dynamic>> categoryLimitMaps = await db.query(
+      'category_budgets',
+      where: 'kategori = ? AND book_id = ?',
+      whereArgs: [kategori, AppData.activeBookId],
+    );
+
+    if (categoryLimitMaps.isNotEmpty) {
+      int limit = categoryLimitMaps.first['limit_jumlah'] as int;
+      if (limit <= 0) return;
+
+      final all = await fetchTransaksi();
+      final now = DateTime.now();
+
+      final categorySpent = all
+          .where((tr) => tr.kategori.toLowerCase() == kategori.toLowerCase() && tr.tanggal.month == now.month && tr.tanggal.year == now.year && (tr.jenis.toLowerCase() == 'keluar' || tr.jenis.toLowerCase() == 'pengeluaran'))
+          .fold(0, (sum, tr) => sum + tr.jumlah);
+
+      if (categorySpent >= limit) {
+        await NotificationService.instance.showCustomNotification(
+          id: 1000 + kategori.hashCode,
+          title: "🚨 Anggaran Kategori Terlampaui!",
+          body: "Pengeluaran untuk kategori '$kategori' (Rp ${NumberFormat.decimalPattern('id').format(categorySpent)}) telah melampaui limit bulanan kategori Anda (Rp ${NumberFormat.decimalPattern('id').format(limit)}).",
+        );
+      } else if (categorySpent >= limit * 0.8) {
+        await NotificationService.instance.showCustomNotification(
+          id: 1000 + kategori.hashCode,
+          title: "⚠️ Peringatan Anggaran Kategori (80%)",
+          body: "Pengeluaran untuk kategori '$kategori' (Rp ${NumberFormat.decimalPattern('id').format(categorySpent)}) telah mencapai 80% dari limit bulanan kategori Anda (Rp ${NumberFormat.decimalPattern('id').format(limit)}).",
+        );
+      }
     }
   }
 
@@ -374,6 +501,7 @@ class DatabaseHelper {
 
     // Trigger pencadangan otomatis senyap di background jika user login
     SyncService.instance.triggerAutoBackup();
+    updateHomeWidgetData();
   }
 
   Future<void> updateTransaksi(Transaksi oldT, Transaksi newT) async {
@@ -448,6 +576,7 @@ class DatabaseHelper {
 
     // Trigger pencadangan otomatis senyap di background jika user login
     SyncService.instance.triggerAutoBackup();
+    updateHomeWidgetData();
   }
 
   Future<void> resetData() async {
@@ -508,5 +637,134 @@ class DatabaseHelper {
     );
     SyncService.instance.triggerAutoBackup();
     return rows;
+  }
+
+  // --- CRUD ANGGARAN KATEGORI ---
+  Future<List<Map<String, dynamic>>> fetchCategoryBudgets() async {
+    final db = await database;
+    return await db.query('category_budgets', where: 'book_id = ?', whereArgs: [AppData.activeBookId]);
+  }
+
+  Future<void> saveCategoryBudget(String kategori, int limitJumlah) async {
+    final db = await database;
+    await db.insert(
+      'category_budgets',
+      {
+        'book_id': AppData.activeBookId,
+        'kategori': kategori,
+        'limit_jumlah': limitJumlah,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    SyncService.instance.triggerAutoBackup();
+  }
+
+  Future<void> deleteCategoryBudget(String kategori) async {
+    final db = await database;
+    await db.delete(
+      'category_budgets',
+      where: 'kategori = ? AND book_id = ?',
+      whereArgs: [kategori, AppData.activeBookId],
+    );
+    SyncService.instance.triggerAutoBackup();
+  }
+
+  // --- CRUD UTANG PIUTANG (DEBTS) ---
+  Future<List<Map<String, dynamic>>> fetchDebts() async {
+    final db = await database;
+    return await db.query('debts', where: 'book_id = ?', whereArgs: [AppData.activeBookId]);
+  }
+
+  Future<void> insertDebt(Map<String, dynamic> debt) async {
+    final db = await database;
+    final map = Map<String, dynamic>.from(debt);
+    map['book_id'] = AppData.activeBookId;
+    await db.insert('debts', map);
+    SyncService.instance.triggerAutoBackup();
+  }
+
+  Future<void> updateDebtPayback(int id, int terbayar, String status) async {
+    final db = await database;
+    await db.update(
+      'debts',
+      {
+        'terbayar': terbayar,
+        'status': status,
+      },
+      where: 'id = ? AND book_id = ?',
+      whereArgs: [id, AppData.activeBookId],
+    );
+    SyncService.instance.triggerAutoBackup();
+  }
+
+  Future<void> deleteDebt(int id) async {
+    final db = await database;
+    await db.delete(
+      'debts',
+      where: 'id = ? AND book_id = ?',
+      whereArgs: [id, AppData.activeBookId],
+    );
+    SyncService.instance.triggerAutoBackup();
+  }
+
+  // --- CRUD GOALS (SAVINGS) ---
+  Future<List<Map<String, dynamic>>> fetchGoals() async {
+    final db = await database;
+    return await db.query('goals', where: 'book_id = ?', whereArgs: [AppData.activeBookId]);
+  }
+
+  Future<void> insertGoal(Map<String, dynamic> goal) async {
+    final db = await database;
+    final map = Map<String, dynamic>.from(goal);
+    map['book_id'] = AppData.activeBookId;
+    await db.insert('goals', map);
+    SyncService.instance.triggerAutoBackup();
+  }
+
+  Future<void> updateGoalTerkumpul(int id, int terkumpul, String status) async {
+    final db = await database;
+    await db.update(
+      'goals',
+      {
+        'terkumpul': terkumpul,
+        'status': status,
+      },
+      where: 'id = ? AND book_id = ?',
+      whereArgs: [id, AppData.activeBookId],
+    );
+    SyncService.instance.triggerAutoBackup();
+  }
+
+  Future<void> deleteGoal(int id) async {
+    final db = await database;
+    await db.delete(
+      'goals',
+      where: 'id = ? AND book_id = ?',
+      whereArgs: [id, AppData.activeBookId],
+    );
+    SyncService.instance.triggerAutoBackup();
+  }
+
+  Future<void> updateHomeWidgetData() async {
+    if (kIsWeb) return;
+    if (!(Platform.isAndroid || Platform.isIOS)) return;
+
+    try {
+      final all = await fetchTransaksi();
+      final now = DateTime.now();
+      final currentMonthExpense = all
+          .where((tr) => tr.tanggal.month == now.month && tr.tanggal.year == now.year && (tr.jenis.toLowerCase() == 'keluar' || tr.jenis.toLowerCase() == 'pengeluaran'))
+          .fold(0, (sum, tr) => sum + tr.jumlah);
+
+      final formattedExpense = "Rp ${NumberFormat.decimalPattern('id').format(currentMonthExpense)}";
+      await HomeWidget.saveWidgetData<String>("expense_value", formattedExpense);
+      await HomeWidget.updateWidget(
+        name: 'HomeWidgetProvider',
+        androidName: 'HomeWidgetProvider',
+      );
+      debugPrint("Home widget updated: $formattedExpense");
+    } catch (e) {
+      debugPrint("Error updating home widget data: $e");
+    }
   }
 }

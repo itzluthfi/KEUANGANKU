@@ -5,10 +5,11 @@ import 'package:intl/date_symbol_data_local.dart';
 import '../data/app_data.dart';
 import '../data/database_helper.dart';
 import 'transaction_input_page.dart';
-import 'manage_wallet_page.dart';
+import 'all_transactions_page.dart';
 import 'package:lottie/lottie.dart';
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import '../services/sync_service.dart';
 
 class HomePage extends StatefulWidget {
@@ -36,9 +37,18 @@ class HomePageState extends State<HomePage> {
   bool isLoading = false;
   int _monthlyBudget = 0;
 
+  final ScrollController _scrollController = ScrollController();
+  bool _isScrolled = false;
+
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(() {
+      final scrolled = _scrollController.offset > 8;
+      if (scrolled != _isScrolled) {
+        setState(() => _isScrolled = scrolled);
+      }
+    });
     initializeDateFormatting('id', null).then((_) {
       if (mounted) setState(() {});
     });
@@ -58,6 +68,7 @@ class HomePageState extends State<HomePage> {
   void dispose() {
     SyncService.instance.connectionStatus.removeListener(_onConnectionChange);
     _successBannerTimer?.cancel();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -83,8 +94,22 @@ class HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> _loadActiveBook() async {
+    final db = DatabaseHelper.instance;
+    final books = await db.fetchBooks();
+    if (books.isEmpty) return;
+    final savedId = int.tryParse(await db.getSetting('active_book_id') ?? '');
+    final active = books.firstWhere(
+      (b) => b.id == savedId,
+      orElse: () => books.first,
+    );
+    AppData.activeBookId = active.id!;
+    AppData.activeBookName = active.nama;
+  }
+
   Future<void> loadData() async {
     setState(() => isLoading = true);
+    await _loadActiveBook();
     final allTransaksi = await DatabaseHelper.instance.fetchTransaksi();
     final allWallets = await DatabaseHelper.instance.fetchWallets();
     final budgetStr = await DatabaseHelper.instance.getSetting('monthly_budget');
@@ -261,8 +286,10 @@ class HomePageState extends State<HomePage> {
                     AppData.activeBookId = b.id!;
                     AppData.activeBookName = b.nama;
                   });
-                  loadData();
                   Navigator.pop(context);
+                  DatabaseHelper.instance
+                      .saveSetting('active_book_id', b.id!.toString())
+                      .then((_) => loadData());
                 },
               )),
               const SizedBox(height: 20),
@@ -290,6 +317,7 @@ class HomePageState extends State<HomePage> {
             onPressed: () async {
               if (nameController.text.trim().isNotEmpty) {
                 final newId = await DatabaseHelper.instance.insertBook(nameController.text.trim());
+                await DatabaseHelper.instance.saveSetting('active_book_id', newId.toString());
                 setState(() {
                   AppData.activeBookId = newId;
                   AppData.activeBookName = nameController.text.trim();
@@ -300,7 +328,7 @@ class HomePageState extends State<HomePage> {
                 ]);
                 if (!mounted) return;
                 loadData();
-                Navigator.pop(context);
+                if (context.mounted) Navigator.pop(context);
               }
             },
             child: const Text("Buat", style: TextStyle(color: Colors.pink)),
@@ -324,6 +352,7 @@ class HomePageState extends State<HomePage> {
     return Scaffold(
       backgroundColor: const Color(0xFFFF528F),
       body: SafeArea(
+        top: false,
         child: Container(
           color: const Color(0xFFF4F7F6),
           child: Center(
@@ -331,121 +360,47 @@ class HomePageState extends State<HomePage> {
               constraints: const BoxConstraints(maxWidth: 800),
               child: Stack(
                 children: [
-                // 1. Scrollable Content (Under the fixed header)
-                SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 140), // Offset to start content below the fixed header
-                      
-                      // Conditional View (Detail/Calendar)
-                      if (isCalendarView) ...[
-                        _buildCalendarCard(),
-                        const SizedBox(height: 20),
-                        _buildBottomTotals(),
-                      ] else ...[
-                        _buildSummaryCard(),
-                        const SizedBox(height: 20),
-                        _buildSearchAndFilters(),
-                        const SizedBox(height: 10),
-                        _buildTransactionList(),
-                      ],
-                      
-                      const SizedBox(height: 100),
-                    ],
-                  ),
-                ),
-                
-                // 2. Fixed Top Header (AppBar)
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    padding: const EdgeInsets.fromLTRB(20, 15, 20, 15),
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Color(0xFFFF528F), Color(0xFFFF7A9F)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.only(
-                        bottomLeft: Radius.circular(28),
-                        bottomRight: Radius.circular(28),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black12,
-                          blurRadius: 8,
-                          offset: Offset(0, 4),
-                        )
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Row 1: Search & Toggle Buttons
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Icon(Icons.search, color: Colors.white, size: 28),
-                            Row(
-                              children: [
-                                _buildViewToggleButton(
-                                  icon: Icons.shopping_basket,
-                                  label: "Detail",
-                                  isActive: !isCalendarView,
-                                  activeColor: Colors.pink,
-                                  onTap: () => setState(() => isCalendarView = false),
-                                ),
-                                const SizedBox(width: 10),
-                                _buildViewToggleButton(
-                                  icon: Icons.calendar_month,
-                                  label: "Kalender",
-                                  isActive: isCalendarView,
-                                  activeColor: Colors.pink,
-                                  onTap: () => setState(() => isCalendarView = true),
-                                ),
+                // 1. Fixed top bar (search & toggles) + scrollable content below it
+                Column(
+                  children: [
+                    _buildFixedTopBar(),
+                     Expanded(
+                      child: RefreshIndicator(
+                        color: const Color(0xFFFF528F),
+                        onRefresh: () async {
+                          await loadData();
+                        },
+                        child: SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          controller: _scrollController,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Book header (nama buku aktif) ikut ter-scroll bersama konten
+                              _buildBookHeader(isTablet),
+                              const SizedBox(height: 20),
+  
+                              // Conditional View (Detail/Calendar)
+                              if (isCalendarView) ...[
+                                _buildCalendarCard(),
+                                const SizedBox(height: 20),
+                                _buildBottomTotals(),
+                              ] else ...[
+                                _buildSummaryCard(),
+                                const SizedBox(height: 20),
+                                _buildSearchAndFilters(),
+                                const SizedBox(height: 4),
+                                _buildTransactionSectionHeader(),
+                                _buildTransactionList(),
                               ],
-                            ),
-                          ],
+  
+                              const SizedBox(height: 100),
+                            ],
+                          ),
                         ),
-                        const SizedBox(height: 12),
-                        // Row 2: Active Book Dropdown & Action Items
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            InkWell(
-                              onTap: _showSwitchBookDialog,
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    AppData.activeBookName,
-                                    style: TextStyle(
-                                      color: Colors.white, 
-                                      fontSize: isTablet ? 28 : 22, 
-                                      fontWeight: FontWeight.bold
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  const Icon(Icons.arrow_drop_down, color: Colors.white, size: 26),
-                                ],
-                              ),
-                            ),
-                            Row(
-                              children: [
-                                _topActionItem(Icons.person_pin_outlined, AppData.activeBookName.split(' ').first, true),
-                                const SizedBox(width: 15),
-                                _topActionItem(Icons.add, "Baru Buku", false, onTap: _createNewBook),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
+                  ],
                 ),
                 Positioned(
                   top: MediaQuery.of(context).padding.top + 10,
@@ -475,6 +430,155 @@ class HomePageState extends State<HomePage> {
           ),
         ),
         ),
+      ),
+    );
+  }
+
+  // Judul section transaksi + tombol menuju halaman Semua Transaksi
+  Widget _buildTransactionSectionHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(22, 0, 12, 0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Text(
+            "Transaksi",
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87),
+          ),
+          TextButton(
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AllTransactionsPage()),
+              );
+              loadData();
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFFFF528F),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text("Lihat Semua", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                Icon(Icons.chevron_right_rounded, size: 18),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Bar atas yang selalu menempel (sticky): search + toggle Detail/Kalender
+  Widget _buildFixedTopBar() {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 15, 20, 12),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFF528F), Color(0xFFFF7A9F)],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        boxShadow: _isScrolled
+            ? const [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 8,
+                  offset: Offset(0, 3),
+                )
+              ]
+            : null,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Icon(Icons.search, color: Colors.white, size: 28),
+          Row(
+            children: [
+              _buildViewToggleButton(
+                icon: Icons.shopping_basket,
+                label: "Detail",
+                isActive: !isCalendarView,
+                activeColor: Colors.pink,
+                onTap: () => setState(() => isCalendarView = false),
+              ),
+              const SizedBox(width: 10),
+              _buildViewToggleButton(
+                icon: Icons.calendar_month,
+                label: "Kalender",
+                isActive: isCalendarView,
+                activeColor: Colors.pink,
+                onTap: () => setState(() => isCalendarView = true),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Header buku aktif: ikut ter-scroll bersama konten di bawah bar atas
+  Widget _buildBookHeader(bool isTablet) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 15),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFFFF528F), Color(0xFFFF7A9F)],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(28),
+          bottomRight: Radius.circular(28),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 8,
+            offset: Offset(0, 4),
+          )
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Flexible(
+            child: InkWell(
+              onTap: _showSwitchBookDialog,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      AppData.activeBookName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: isTablet ? 28 : 22,
+                        fontWeight: FontWeight.bold
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.arrow_drop_down, color: Colors.white, size: 26),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Row(
+            children: [
+              _topActionItem(Icons.person_pin_outlined, AppData.activeBookName.split(' ').first, true),
+              const SizedBox(width: 15),
+              _topActionItem(Icons.add, "Baru Buku", false, onTap: _createNewBook),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -1278,12 +1382,12 @@ class HomePageState extends State<HomePage> {
                 ),
                 const SizedBox(height: 24),
                 
-                if (t.itemsJson != null && t.itemsJson!.isNotEmpty) ...[
+                if ((t.itemsJson != null && t.itemsJson!.isNotEmpty) || t.receiptPath != null || t.receiptUrl != null) ...[
                   _buildModernOptionTile(
                     icon: Icons.receipt_long_rounded,
                     iconColor: Colors.pink,
                     title: "Lihat Rincian Item (Struk)",
-                    subtitle: "Lihat rincian barang belanjaan detail",
+                    subtitle: "Lihat rincian barang & foto struk",
                     onTap: () {
                       Navigator.pop(context);
                       _showReceiptDetailDialog(t);
@@ -1410,6 +1514,25 @@ class HomePageState extends State<HomePage> {
               Navigator.pop(context);
               await DatabaseHelper.instance.deleteTransaksi(t);
               loadData();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).clearSnackBars();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text("Transaksi berhasil dihapus"),
+                    action: SnackBarAction(
+                      label: "URUNGKAN",
+                      textColor: Colors.pink.shade100,
+                      onPressed: () async {
+                        await DatabaseHelper.instance.insertTransaksi(t);
+                        loadData();
+                      },
+                    ),
+                    duration: const Duration(seconds: 5),
+                    behavior: SnackBarBehavior.floating,
+                    backgroundColor: Colors.black87,
+                  ),
+                );
+              }
             }, 
             child: const Text("Ya, Hapus", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
           ),
@@ -1419,14 +1542,17 @@ class HomePageState extends State<HomePage> {
   }
 
   void _showReceiptDetailDialog(Transaksi t) {
-    if (t.itemsJson == null || t.itemsJson!.isEmpty) return;
-    
     List<dynamic> items = [];
-    try {
-      items = jsonDecode(t.itemsJson!);
-    } catch (e) {
-      return;
+    if (t.itemsJson != null && t.itemsJson!.isNotEmpty) {
+      try {
+        items = jsonDecode(t.itemsJson!);
+      } catch (e) {
+        // Abaikan; tampilkan foto struk saja bila ada
+      }
     }
+    final bool hasLocalPhoto = t.receiptPath != null && File(t.receiptPath!).existsSync();
+    final bool hasRemotePhoto = t.receiptUrl != null && t.receiptUrl!.isNotEmpty;
+    if (items.isEmpty && !hasLocalPhoto && !hasRemotePhoto) return;
 
     showDialog(
       context: context,
@@ -1471,6 +1597,39 @@ class HomePageState extends State<HomePage> {
                         DateFormat('dd MMMM yyyy, HH:mm').format(t.tanggal),
                         style: const TextStyle(color: Colors.grey, fontSize: 10),
                       ),
+                      if (hasLocalPhoto || hasRemotePhoto) ...[
+                        const SizedBox(height: 12),
+                        GestureDetector(
+                          onTap: () => _showFullReceiptPhoto(t, hasLocalPhoto),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(14),
+                            child: hasLocalPhoto
+                                ? Image.file(
+                                    File(t.receiptPath!),
+                                    height: 140,
+                                    width: double.infinity,
+                                    fit: BoxFit.cover,
+                                  )
+                                : Image.network(
+                                    t.receiptUrl!,
+                                    height: 140,
+                                    width: double.infinity,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stack) => Container(
+                                      height: 60,
+                                      alignment: Alignment.center,
+                                      color: Colors.grey.shade100,
+                                      child: const Text("Foto struk tidak dapat dimuat", style: TextStyle(color: Colors.grey, fontSize: 11)),
+                                    ),
+                                  ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          "Ketuk foto untuk memperbesar",
+                          style: TextStyle(color: Colors.grey, fontSize: 9),
+                        ),
+                      ],
                       const SizedBox(height: 15),
                       const Text(
                         "- - - - - - - - - - - - - - - - - - - - - - - - - - - - -",
@@ -1478,6 +1637,12 @@ class HomePageState extends State<HomePage> {
                         maxLines: 1,
                       ),
                       const SizedBox(height: 10),
+                      if (items.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8),
+                          child: Text("Tidak ada rincian item", style: TextStyle(color: Colors.grey, fontSize: 11)),
+                        )
+                      else
                       ConstrainedBox(
                         constraints: const BoxConstraints(maxHeight: 250),
                         child: ListView.builder(
@@ -1550,6 +1715,47 @@ class HomePageState extends State<HomePage> {
           ),
         );
       },
+    );
+  }
+
+  void _showFullReceiptPhoto(Transaksi t, bool useLocalFile) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: InteractiveViewer(
+                maxScale: 5,
+                child: useLocalFile
+                    ? Image.file(File(t.receiptPath!), fit: BoxFit.contain)
+                    : Image.network(
+                        t.receiptUrl!,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stack) => Container(
+                          padding: const EdgeInsets.all(30),
+                          color: Colors.white,
+                          child: const Text("Foto struk tidak dapat dimuat", style: TextStyle(color: Colors.grey)),
+                        ),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.pink,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+              ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Tutup", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

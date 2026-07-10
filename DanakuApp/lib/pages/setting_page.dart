@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -17,6 +18,9 @@ import 'pin_lock_page.dart';
 import 'manage_recurring_page.dart';
 import 'notification_inbox_page.dart';
 import 'package:lottie/lottie.dart';
+import 'category_budget_page.dart';
+import 'debts_page.dart';
+import 'goals_page.dart';
 
 class SettingPage extends StatefulWidget {
   const SettingPage({super.key});
@@ -33,6 +37,7 @@ class _SettingPageState extends State<SettingPage> {
   int _monthlyBudget = 0;
   int _monthlyExpense = 0;
   String _reminderTime = "20:00";
+  bool _reminderEnabled = true;
   bool _pinEnabled = false;
   bool _biometricEnabled = false;
   bool _biometricSupported = false;
@@ -76,13 +81,17 @@ class _SettingPageState extends State<SettingPage> {
         .where((t) => t.tanggal.month == now.month && t.tanggal.year == now.year && (t.jenis.toLowerCase() == "keluar" || t.jenis.toLowerCase() == "pengeluaran"))
         .fold(0, (sum, t) => sum + t.jumlah);
 
-    // 4. Ambil status kunci PIN
+    // 4. Ambil status pengingat harian aktif
+    final reminderEnabledStr = await DatabaseHelper.instance.getSetting('reminder_enabled');
+
+    // 5. Ambil status kunci PIN
     final pinEnabledStr = await DatabaseHelper.instance.getSetting('pin_enabled');
     final biometricEnabledStr = await DatabaseHelper.instance.getSetting('biometric_enabled');
 
     setState(() {
       _monthlyBudget = budget;
       _reminderTime = reminder ?? "20:00";
+      _reminderEnabled = reminderEnabledStr != 'false';
       _monthlyExpense = expense;
       _pinEnabled = pinEnabledStr == 'true';
       _biometricEnabled = biometricEnabledStr == 'true';
@@ -355,13 +364,55 @@ class _SettingPageState extends State<SettingPage> {
   void _triggerRestore() async {
     if (_loggedInEmail == null) return;
 
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator(color: Color(0xFFFF528F))),
+    );
+
+    Map<String, dynamic>? backupPreview;
+    try {
+      backupPreview = await SyncService.instance.fetchBackupPreview(_loggedInEmail!);
+    } catch (_) {}
+
+    if (mounted) Navigator.pop(context);
+
+    if (backupPreview == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Gagal mengambil data cadangan. Pastikan koneksi internet terhubung."),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    final listTr = backupPreview['transaksi'] as List? ?? [];
+    final listWl = backupPreview['wallets'] as List? ?? [];
+    
+    String lastDateStr = "Tidak ada";
+    if (listTr.isNotEmpty) {
+      try {
+        final dates = listTr.map((t) => DateTime.parse(t['tanggal'])).toList();
+        dates.sort((a, b) => b.compareTo(a));
+        lastDateStr = DateFormat('dd MMM yyyy HH:mm', 'id').format(dates.first);
+      } catch (_) {}
+    }
+
     bool confirm = await _showStyledConfirmDialog(
       context: context,
-      title: "Pulihkan Data",
-      message: "Tindakan ini akan menimpa seluruh transaksi & dompet lokal di HP ini dengan data cadangan terbaru Anda di Awan Danaku. Lanjutkan?",
-      confirmLabel: "Ya, Pulihkan",
-      confirmColor: Colors.blue,
-      icon: Icons.cloud_download_outlined,
+      title: "Konfirmasi Pemulihan Data",
+      message: "Cadangan Awan Anda berisi:\n"
+          "• ${listTr.length} Transaksi\n"
+          "• ${listWl.length} Dompet\n"
+          "• Transaksi Terakhir: $lastDateStr\n\n"
+          "Tindakan ini akan MENIMPA seluruh data lokal Anda saat ini. Apakah Anda yakin ingin melanjutkan?",
+      confirmLabel: "Ya, Tumpuk & Pulihkan",
+      confirmColor: Colors.redAccent,
+      icon: Icons.warning_amber_rounded,
     ) ?? false;
 
     if (confirm != true) return;
@@ -687,138 +738,179 @@ class _SettingPageState extends State<SettingPage> {
   void _showReminderDialog() {
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
-        elevation: 10,
-        backgroundColor: Colors.transparent,
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(25),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                height: 12,
-                decoration: const BoxDecoration(
-                  color: Colors.pink,
-                  borderRadius: BorderRadius.only(topLeft: Radius.circular(25), topRight: Radius.circular(25)),
+      builder: (context) => StatefulBuilder(
+        builder: (context, dialogSetState) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+          elevation: 10,
+          backgroundColor: Colors.transparent,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(25),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  height: 12,
+                  decoration: const BoxDecoration(
+                    color: Colors.pink,
+                    borderRadius: BorderRadius.only(topLeft: Radius.circular(25), topRight: Radius.circular(25)),
+                  ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.notifications_active_rounded, color: Colors.pink, size: 36),
-                    const SizedBox(height: 10),
-                    const Text(
-                      "Pengingat Harian",
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      "Ingatkan saya setiap hari untuk mencatat pengeluaran agar laporan tetap akurat.",
-                      style: TextStyle(color: Colors.grey, fontSize: 12, height: 1.4),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 20),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                      decoration: BoxDecoration(color: Colors.pink.shade50, borderRadius: BorderRadius.circular(16)),
-                      child: Row(
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.notifications_active_rounded, color: Colors.pink, size: 36),
+                      const SizedBox(height: 10),
+                      const Text(
+                        "Pengingat Harian",
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        "Ingatkan saya setiap hari untuk mencatat pengeluaran agar laporan tetap akurat.",
+                        style: TextStyle(color: Colors.grey, fontSize: 12, height: 1.4),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      // TOGGLE SWITCH
+                      Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text("Waktu Pengingat:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.pink)),
-                          Text(_reminderTime, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.pink)),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 40,
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.pink,
-                          side: const BorderSide(color: Colors.pink),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        icon: const Icon(Icons.notifications_active_outlined, size: 18),
-                        label: const Text("Kirim Notifikasi Uji Coba", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                        onPressed: () async {
-                          if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
-                            await NotificationService.instance.requestPermissions();
-                            await NotificationService.instance.showInstantNotification();
-                          }
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            style: OutlinedButton.styleFrom(
-                              side: BorderSide(color: Colors.grey.shade300),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                            ),
-                            onPressed: () => Navigator.pop(context),
-                            child: Text("Tutup", style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
+                          const Text(
+                            "Aktifkan Pengingat",
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87),
                           ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.pink,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                              elevation: 0,
-                            ),
-                            onPressed: () async {
-                              Navigator.pop(context);
-                              final timeParts = _reminderTime.split(":");
-                              final hour = int.tryParse(timeParts[0]) ?? 20;
-                              final minute = int.tryParse(timeParts[1]) ?? 0;
-
-                              final picked = await showTimePicker(
-                                context: context,
-                                initialTime: TimeOfDay(hour: hour, minute: minute),
-                              );
-
-                              if (picked != null) {
-                                final formatted = "${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}";
-                                await DatabaseHelper.instance.saveSetting('reminder_time', formatted);
-                                _loadCustomSettings();
-                                
+                          Switch(
+                            value: _reminderEnabled,
+                            activeColor: Colors.pink,
+                            onChanged: (val) async {
+                              dialogSetState(() {
+                                _reminderEnabled = val;
+                              });
+                              setState(() {
+                                _reminderEnabled = val;
+                              });
+                              await DatabaseHelper.instance.saveSetting('reminder_enabled', val.toString());
+                              
+                              if (!val) {
+                                await NotificationService.instance.cancelDailyNotification();
+                              } else {
                                 if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
-                                  await NotificationService.instance.requestPermissions();
-                                  await NotificationService.instance.scheduleDailyNotification(picked.hour, picked.minute);
-                                }
-
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text("Pengingat diubah ke pukul $formatted!"),
-                                      behavior: SnackBarBehavior.floating,
-                                      backgroundColor: Colors.pink,
-                                    )
-                                  );
+                                  final timeParts = _reminderTime.split(":");
+                                  final hour = int.tryParse(timeParts[0]) ?? 20;
+                                  final minute = int.tryParse(timeParts[1]) ?? 0;
+                                  await NotificationService.instance.scheduleDailyNotification(hour, minute);
                                 }
                               }
                             },
-                            child: const Text("Ubah Jam", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                           ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                        decoration: BoxDecoration(color: Colors.pink.shade50, borderRadius: BorderRadius.circular(16)),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text("Waktu Pengingat:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.pink)),
+                            Text(_reminderTime, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.pink)),
+                          ],
                         ),
-                      ],
-                    ),
-                  ],
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 40,
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.pink,
+                            side: const BorderSide(color: Colors.pink),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          icon: const Icon(Icons.notifications_active_outlined, size: 18),
+                          label: const Text("Kirim Notifikasi Uji Coba", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          onPressed: () async {
+                            if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+                              await NotificationService.instance.requestPermissions();
+                              await NotificationService.instance.showInstantNotification();
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(color: Colors.grey.shade300),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              ),
+                              onPressed: () => Navigator.pop(context),
+                              child: Text("Tutup", style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.pink,
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                elevation: 0,
+                              ),
+                              onPressed: _reminderEnabled ? () async {
+                                final timeParts = _reminderTime.split(":");
+                                final hour = int.tryParse(timeParts[0]) ?? 20;
+                                final minute = int.tryParse(timeParts[1]) ?? 0;
+  
+                                final picked = await showTimePicker(
+                                  context: context,
+                                  initialTime: TimeOfDay(hour: hour, minute: minute),
+                                );
+  
+                                if (picked != null) {
+                                  final formatted = "${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}";
+                                  await DatabaseHelper.instance.saveSetting('reminder_time', formatted);
+                                  await _loadCustomSettings();
+                                  dialogSetState(() {
+                                    _reminderTime = formatted;
+                                  });
+                                  
+                                  if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+                                    await NotificationService.instance.requestPermissions();
+                                    await NotificationService.instance.scheduleDailyNotification(picked.hour, picked.minute);
+                                  }
+  
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text("Pengingat diubah ke pukul $formatted!"),
+                                        behavior: SnackBarBehavior.floating,
+                                        backgroundColor: Colors.pink,
+                                      )
+                                    );
+                                  }
+                                }
+                              } : null,
+                              child: const Text("Ubah Jam", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -1258,10 +1350,31 @@ class _SettingPageState extends State<SettingPage> {
                     label: "Tukar Kurs",
                     onTap: _showExchangeDialog,
                   ),
-                  GridMenuItem(
+                   GridMenuItem(
                     lottieAsset: "assets/icons/activity.json",
-                    label: "Anggaran",
+                    label: "Anggaran Total",
                     onTap: _showBudgetDialog,
+                  ),
+                  GridMenuItem(
+                    icon: Icons.category_outlined,
+                    label: "Anggaran Kategori",
+                    onTap: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const CategoryBudgetPage()));
+                    },
+                  ),
+                  GridMenuItem(
+                    icon: Icons.handshake_outlined,
+                    label: "Utang Piutang",
+                    onTap: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const DebtsPage()));
+                    },
+                  ),
+                  GridMenuItem(
+                    icon: Icons.track_changes_outlined,
+                    label: "Target Tabungan",
+                    onTap: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const GoalsPage()));
+                    },
                   ),
                   GridMenuItem(
                     lottieAsset: "assets/icons/notification.json",
@@ -2217,6 +2330,7 @@ class GridMenuItem extends StatefulWidget {
 
 class _GridMenuItemState extends State<GridMenuItem> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
+  Timer? _pauseTimer;
 
   @override
   void initState() {
@@ -2226,8 +2340,23 @@ class _GridMenuItemState extends State<GridMenuItem> with SingleTickerProviderSt
 
   @override
   void dispose() {
+    _pauseTimer?.cancel();
     _controller.dispose();
     super.dispose();
+  }
+
+  // Main sekali, jeda beberapa detik, lalu main lagi (tidak loop terus-menerus)
+  void _playWithPause({bool initial = false}) {
+    if (!mounted) return;
+    // Stagger awal acak agar semua ikon tidak beranimasi serempak
+    final delay = initial
+        ? Duration(milliseconds: 300 + (widget.label.hashCode.abs() % 1500))
+        : const Duration(seconds: 4);
+    _pauseTimer?.cancel();
+    _pauseTimer = Timer(delay, () {
+      if (!mounted) return;
+      _controller.forward(from: 0).whenComplete(() => _playWithPause());
+    });
   }
 
   @override
@@ -2260,7 +2389,7 @@ class _GridMenuItemState extends State<GridMenuItem> with SingleTickerProviderSt
                           onLoaded: (composition) {
                             // Slow down duration of the loop to 2x composition duration to prevent glitching
                             _controller.duration = composition.duration * 2.2;
-                            _controller.repeat();
+                            _playWithPause(initial: true);
                           },
                         ),
                       ),

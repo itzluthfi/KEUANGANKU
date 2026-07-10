@@ -6,6 +6,7 @@ use App\Http\Controllers\API\AuthController;
 use App\Http\Controllers\API\BackupController;
 use App\Http\Controllers\API\AIController;
 use App\Http\Controllers\API\NotificationController;
+use App\Http\Controllers\API\ReceiptController;
 
 // Rute Publik (Bisa diakses tanpa login)
 Route::get('/', function () {
@@ -20,6 +21,7 @@ Route::post('/login', [AuthController::class, 'login']);
 
 Route::post('/ai/parse-text', [AIController::class, 'parseText']);
 Route::post('/ai/parse-receipt', [AIController::class, 'parseReceipt']);
+Route::post('/receipts', [ReceiptController::class, 'store']);
 
 // Rute Privat (Wajib menyertakan Bearer Token Sanctum di Header HTTP)
 Route::middleware('auth:sanctum')->group(function () {

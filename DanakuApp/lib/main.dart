@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
+import 'package:home_widget/home_widget.dart';
 import 'pages/main_page.dart';
 import 'pages/splash_page.dart';
 import 'services/notification_service.dart';
@@ -33,11 +34,26 @@ void main() async {
     databaseFactory = databaseFactoryFfi;
   }
   
-  runApp(const DanakuApp());
+  Uri? launchedUri;
+  if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+    try {
+      launchedUri = await HomeWidget.initiallyLaunchedFromHomeWidget();
+    } catch (e) {
+      debugPrint("Failed to get initially launched URI: $e");
+    }
+  }
+  
+  String? initialRoute;
+  if (launchedUri != null && launchedUri.scheme == 'danaku' && launchedUri.host == 'add_transaction') {
+    initialRoute = '/add_transaction';
+  }
+  
+  runApp(DanakuApp(initialRoute: initialRoute));
 }
 
 class DanakuApp extends StatelessWidget {
-  const DanakuApp({super.key});
+  final String? initialRoute;
+  const DanakuApp({super.key, this.initialRoute});
 
   @override
   Widget build(BuildContext context) {
@@ -47,8 +63,7 @@ class DanakuApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      // Hapus Center dan SizedBox width: 400 agar aplikasi memenuhi layar
-      home: const SplashPage(),
+      home: SplashPage(initialRoute: initialRoute),
     );
   }
 }

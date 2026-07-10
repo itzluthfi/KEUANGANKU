@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../data/app_data.dart';
 import '../data/database_helper.dart';
 import 'manage_category_page.dart';
 import 'package:intl/intl.dart';
+import '../utils/math_parser.dart';
 import '../services/exchange_service.dart';
 import '../services/sync_service.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui';
 import '../widgets/custom_snackbar.dart';
 
@@ -48,6 +52,8 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
   Timer? _sttHintTimer;
   String? _scannedReceiptName;
   List<dynamic>? _activeItems;
+  String? _receiptImagePath;
+  bool _isNumpadCollapsed = false;
 
   late AnimationController _pulseController;
   final List<Transaksi> _queuedTransactions = [];
@@ -62,6 +68,7 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
       keteranganController.text = t.keterangan;
       selectedDate = t.tanggal;
       selectedWallet = AppData.wallets.firstWhere((w) => w.nama == t.walletNama, orElse: () => AppData.wallets.first);
+      _receiptImagePath = t.receiptPath;
       if (t.itemsJson != null && t.itemsJson!.isNotEmpty) {
         try {
           _activeItems = jsonDecode(t.itemsJson!);
@@ -251,13 +258,24 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
               ],
             ),
             content: const Text(
-              "Fitur pengurai struk belanja dengan kecerdasan buatan (AI) memerlukan koneksi internet aktif untuk menghubungi server Danaku.",
+              "Fitur pengurai struk belanja dengan kecerdasan buatan (AI) memerlukan koneksi internet aktif untuk menghubungi server Danaku.\n\nAnda tetap bisa melampirkan foto struk ke transaksi ini — foto akan tersimpan di perangkat dan diunggah ke server saat online.",
               style: TextStyle(height: 1.4),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text("Tutup", style: TextStyle(color: Colors.pink, fontWeight: FontWeight.bold)),
+                child: const Text("Tutup", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.pink,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () {
+                  Navigator.pop(context);
+                  _attachReceiptPhotoOnly();
+                },
+                child: const Text("Lampirkan Foto Saja", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -367,6 +385,12 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
       imageQuality: 80,
     );
     if (pickedFile == null) return;
+
+    // Simpan foto struk secara lokal agar tetap tersimpan (offline-first)
+    final savedPath = await _saveReceiptImageLocally(pickedFile);
+    if (savedPath != null && mounted) {
+      setState(() => _receiptImagePath = savedPath);
+    }
 
     setState(() => _isScanningReceipt = true);
 
@@ -530,22 +554,52 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
   }
 
   void _onNumpadTap(String value) {
+    // Trigger haptic feedback
+    HapticFeedback.lightImpact();
+
     setState(() {
+      final operators = ["+", "-", "x", "/"];
+      
       if (value == "DEL") {
         if (nominal.length > 1) {
-          nominal = nominal.substring(0, nominal.length - 1);
+          // If we delete space-operator-space, delete all of them
+          if (nominal.endsWith(" ")) {
+            nominal = nominal.substring(0, nominal.length - 3);
+          } else {
+            nominal = nominal.substring(0, nominal.length - 1);
+          }
+          if (nominal.isEmpty) nominal = "0";
         } else {
           nominal = "0";
         }
       } else if (value == ".") {
-        if (!nominal.contains(".")) {
+        // Find the last number segment in nominal to see if it already has a dot
+        final lastSegment = nominal.split(RegExp(r'[\+\-x/]')).last;
+        if (!lastSegment.contains(".")) {
           nominal += ".";
         }
+      } else if (operators.contains(value)) {
+        // If nominal is "0" and value is "-", allow it as negative start
+        if (nominal == "0" && value == "-") {
+          nominal = "-";
+          return;
+        }
+        
+        // Remove trailing operator if there is one
+        String lastChar = nominal.substring(nominal.length - 1);
+        if (operators.contains(lastChar)) {
+          nominal = nominal.substring(0, nominal.length - 1) + value;
+        } else if (nominal != "-") {
+          nominal += value;
+        }
       } else {
+        // Digit tapped
         if (nominal == "0") {
           nominal = value;
+        } else if (nominal == "-0") {
+          nominal = "-$value";
         } else {
-          if (nominal.length < 15) {
+          if (nominal.length < 30) { // Allow longer length for expressions
             nominal += value;
           }
         }
@@ -575,7 +629,7 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
   }
 
   Future<void> _saveTransaction() async {
-    double? parsedAmount = double.tryParse(nominal);
+    double? parsedAmount = evaluateExpression(nominal);
     double baseAmount = parsedAmount ?? 0;
     int currentJumlah = selectedCurrency == "USD" ? (baseAmount * usdToIdr).toInt() : baseAmount.toInt();
 
@@ -595,6 +649,12 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
         return;
       }
 
+      // Upload foto struk ke server bila ada & belum pernah terunggah
+      String? receiptUrl = widget.initialTransaksi!.receiptUrl;
+      if (_receiptImagePath != null && receiptUrl == null) {
+        receiptUrl = await _uploadReceiptImage(_receiptImagePath!);
+      }
+
       final updated = Transaksi(
         id: widget.initialTransaksi!.id,
         keterangan: keteranganController.text.isEmpty ? selectedCategory!.nama : keteranganController.text,
@@ -604,6 +664,8 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
         walletNama: selectedWallet!.nama,
         kategori: selectedCategory!.nama,
         itemsJson: _activeItems != null ? jsonEncode(_activeItems) : null,
+        receiptPath: _receiptImagePath,
+        receiptUrl: _receiptImagePath != null ? receiptUrl : null,
       );
 
       try {
@@ -660,6 +722,7 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
         walletNama: selectedWallet!.nama,
         kategori: selectedCategory!.nama,
         itemsJson: _activeItems != null ? jsonEncode(_activeItems) : null,
+        receiptPath: _receiptImagePath,
       ));
     }
 
@@ -740,6 +803,17 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
     }
 
     try {
+      // Unggah foto struk yang belum terunggah ke server (hanya berjalan saat online)
+      for (var i = 0; i < _queuedTransactions.length; i++) {
+        final t = _queuedTransactions[i];
+        if (t.receiptPath != null && t.receiptUrl == null) {
+          final url = await _uploadReceiptImage(t.receiptPath!);
+          if (url != null) {
+            _queuedTransactions[i] = t.copyWith(receiptUrl: url);
+          }
+        }
+      }
+
       for (var t in _queuedTransactions) {
         await DatabaseHelper.instance.insertTransaksi(t);
       }
@@ -765,7 +839,7 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
 
   @override
   Widget build(BuildContext context) {
-    double? parsedAmount = double.tryParse(nominal);
+    double? parsedAmount = evaluateExpression(nominal);
     double converted = selectedCurrency == "USD" ? (parsedAmount ?? 0) * usdToIdr : (parsedAmount ?? 0);
     final screenSize = MediaQuery.of(context).size;
     final isShortScreen = screenSize.height < 700;
@@ -832,6 +906,7 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
                           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               _isScanningReceipt
                                   ? const Padding(
@@ -842,77 +917,76 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
                                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.pink),
                                       ),
                                     )
-                                  : Container(
-                                      margin: const EdgeInsets.symmetric(horizontal: 8),
-                                      decoration: BoxDecoration(
-                                        color: Colors.pink.shade50.withOpacity(0.5),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: IconButton(
-                                        icon: const Icon(Icons.document_scanner, color: Colors.pink, size: 22),
-                                        onPressed: _scanReceipt,
-                                        tooltip: "Pindai Struk",
-                                      ),
+                                  : _buildActionButton(
+                                      icon: Icons.camera_alt_rounded,
+                                      label: "Scan Struk",
+                                      onPressed: _scanReceipt,
+                                      showAiBadge: true,
                                     ),
                               if (_queuedTransactions.isNotEmpty)
-                                Container(
-                                  margin: const EdgeInsets.symmetric(horizontal: 8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.pink.shade50.withOpacity(0.5),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Stack(
-                                    clipBehavior: Clip.none,
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(Icons.shopping_cart_outlined, color: Colors.pink, size: 22),
-                                        onPressed: _showQueueManager,
-                                        tooltip: "Kelola Antrean",
-                                      ),
-                                      Positioned(
-                                        right: -2,
-                                        top: -2,
-                                        child: Container(
-                                          padding: const EdgeInsets.all(2),
-                                          decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                                          constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
-                                          alignment: Alignment.center,
-                                          child: Text(
-                                            _queuedTransactions.length.toString(),
-                                            style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                _buildActionButton(
+                                  icon: Icons.shopping_cart_outlined,
+                                  label: "Antrean",
+                                  onPressed: _showQueueManager,
+                                  badgeCount: _queuedTransactions.length,
                                 ),
-                              Container(
-                                margin: const EdgeInsets.symmetric(horizontal: 8),
-                                decoration: BoxDecoration(
-                                  color: Colors.pink.shade50.withOpacity(0.5),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: IconButton(
-                                  icon: const Icon(Icons.add_circle_outline_rounded, color: Colors.pink, size: 22),
-                                  onPressed: _queueCurrentTransaction,
-                                  tooltip: "Antrekan Transaksi",
-                                ),
+                              _buildActionButton(
+                                icon: Icons.add_circle_outline_rounded,
+                                label: "Antrekan",
+                                onPressed: _queueCurrentTransaction,
                               ),
-                              Container(
-                                margin: const EdgeInsets.symmetric(horizontal: 8),
-                                decoration: const BoxDecoration(
-                                  color: Colors.pink,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: IconButton(
-                                  icon: const Icon(Icons.check_rounded, color: Colors.white, size: 22),
-                                  onPressed: _saveTransaction,
-                                  tooltip: "Simpan Semua",
-                                ),
+                              _buildActionButton(
+                                icon: Icons.check_rounded,
+                                label: "Simpan",
+                                onPressed: _saveTransaction,
+                                filled: true,
                               ),
                             ],
                           ),
                         ),
+
+                        // Indikator foto struk terlampir
+                        if (_receiptImagePath != null)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
+                            child: GestureDetector(
+                              onTap: _previewReceiptImage,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: Colors.pink.shade50,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: Colors.pink.shade100),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(6),
+                                      child: Image.file(
+                                        File(_receiptImagePath!),
+                                        width: 24,
+                                        height: 24,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stack) =>
+                                            const Icon(Icons.receipt_long_rounded, color: Colors.pink, size: 20),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    const Text(
+                                      "Foto struk terlampir",
+                                      style: TextStyle(color: Colors.pink, fontSize: 10, fontWeight: FontWeight.bold),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    GestureDetector(
+                                      onTap: () => setState(() => _receiptImagePath = null),
+                                      child: const Icon(Icons.close_rounded, color: Colors.pink, size: 14),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
 
                         if (!isShortScreen) const SizedBox(height: 10),
 
@@ -960,10 +1034,36 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
                             color: Colors.pink.shade400,
                             borderRadius: const BorderRadius.only(topLeft: Radius.circular(30), topRight: Radius.circular(30)),
                           ),
-                          padding: EdgeInsets.fromLTRB(15, isShortScreen ? 8 : 15, 15, 10),
+                          padding: EdgeInsets.fromLTRB(15, isShortScreen ? 4 : 8, 15, 10),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
+                              // Handle buka/tutup kalkulator
+                              InkWell(
+                                onTap: () => setState(() => _isNumpadCollapsed = !_isNumpadCollapsed),
+                                child: Container(
+                                  width: double.infinity,
+                                  alignment: Alignment.center,
+                                  padding: const EdgeInsets.only(bottom: 4),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        _isNumpadCollapsed
+                                            ? Icons.keyboard_arrow_up_rounded
+                                            : Icons.keyboard_arrow_down_rounded,
+                                        color: Colors.white,
+                                        size: 18,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        _isNumpadCollapsed ? "Buka Kalkulator" : "Tutup Kalkulator",
+                                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
                               _buildSttHintCarousel(),
                               const SizedBox(height: 6),
                               // Input Bar
@@ -1010,51 +1110,79 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
                                               child: CircularProgressIndicator(strokeWidth: 2, color: Colors.pink),
                                             ),
                                           )
-                                        : IconButton(
-                                            icon: Icon(
-                                              _isListening ? Icons.mic : Icons.mic_none,
-                                              color: _isListening ? Colors.red : Colors.pink,
-                                            ),
-                                            onPressed: _toggleListening,
-                                            padding: EdgeInsets.zero,
-                                            constraints: const BoxConstraints(),
+                                        : Stack(
+                                            clipBehavior: Clip.none,
+                                            children: [
+                                              IconButton(
+                                                icon: Icon(
+                                                  _isListening ? Icons.mic : Icons.mic_none,
+                                                  color: _isListening ? Colors.red : Colors.pink,
+                                                ),
+                                                onPressed: _toggleListening,
+                                                padding: EdgeInsets.zero,
+                                                constraints: const BoxConstraints(),
+                                                tooltip: "Catat dengan Suara (AI)",
+                                              ),
+                                              Positioned(
+                                                right: -8,
+                                                top: -9,
+                                                child: _buildAiBadge(),
+                                              ),
+                                            ],
                                           ),
                                     const SizedBox(width: 10),
                                     
-                                    // Currency Selector & Nominal
-                                    Column(
-                                      crossAxisAlignment: CrossAxisAlignment.end,
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            if (selectedCurrency == "USD") ...[
-                                              const Text("USD", style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
-                                              const SizedBox(width: 4),
-                                            ],
-                                            Text(
-                                              nominal,
-                                              style: TextStyle(
-                                                fontSize: nominal.length > 10 ? 16 : 22,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.black87,
+                                    // Currency Selector & Nominal (tap untuk buka kalkulator)
+                                    GestureDetector(
+                                      onTap: () {
+                                        if (_isNumpadCollapsed) {
+                                          setState(() => _isNumpadCollapsed = false);
+                                        }
+                                      },
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              if (selectedCurrency == "USD") ...[
+                                                const Text("USD", style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
+                                                const SizedBox(width: 4),
+                                              ],
+                                              Text(
+                                                formatLiveExpression(nominal),
+                                                style: TextStyle(
+                                                  fontSize: formatLiveExpression(nominal).length > 10 ? 16 : 22,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.black87,
+                                                ),
                                               ),
-                                            ),
-                                          ],
-                                        ),
-                                        if (selectedCurrency == "USD")
-                                          Text(
-                                            "≈ Rp${NumberFormat.decimalPattern('id').format(converted.toInt())}",
-                                            style: const TextStyle(fontSize: 9, color: Colors.grey),
+                                            ],
                                           ),
-                                      ],
+                                          if (selectedCurrency == "USD")
+                                            Text(
+                                              "≈ Rp${NumberFormat.decimalPattern('id').format(converted.toInt())}",
+                                              style: const TextStyle(fontSize: 9, color: Colors.grey),
+                                            ),
+                                        ],
+                                      ),
                                     ),
                                   ],
                                 ),
                               ),
-                              const SizedBox(height: 10),
-                              _buildNumpad(),
+                              AnimatedSize(
+                                duration: const Duration(milliseconds: 250),
+                                curve: Curves.easeInOut,
+                                child: _isNumpadCollapsed
+                                    ? const SizedBox(width: double.infinity)
+                                    : Column(
+                                        children: [
+                                          const SizedBox(height: 10),
+                                          _buildNumpad(),
+                                        ],
+                                      ),
+                              ),
                             ],
                           ),
                         ),
@@ -1084,9 +1212,16 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Text(
-                              "Mendengarkan...",
-                              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFFFF528F)),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text(
+                                  "Mendengarkan...",
+                                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFFFF528F)),
+                                ),
+                                const SizedBox(width: 8),
+                                _buildAiBadge(scale: 1.4),
+                              ],
                             ),
                             const SizedBox(height: 25),
                             _buildPulsingMicAnimation(),
@@ -1197,12 +1332,229 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
     );
   }
 
+  // Badge kecil penanda fitur bertenaga AI
+  Widget _buildAiBadge({double scale = 1}) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 4 * scale, vertical: 1.5 * scale),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(colors: [Color(0xFF8E2DE2), Color(0xFFFF528F)]),
+        borderRadius: BorderRadius.circular(8 * scale),
+        border: Border.all(color: Colors.white, width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.auto_awesome, size: 7 * scale, color: Colors.white),
+          SizedBox(width: 2 * scale),
+          Text(
+            "AI",
+            style: TextStyle(color: Colors.white, fontSize: 7 * scale, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onPressed,
+    bool filled = false,
+    bool showAiBadge = false,
+    int? badgeCount,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: filled ? Colors.pink : Colors.pink.shade50.withValues(alpha: 0.5),
+              shape: BoxShape.circle,
+            ),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                IconButton(
+                  icon: Icon(icon, color: filled ? Colors.white : Colors.pink, size: 22),
+                  onPressed: onPressed,
+                  tooltip: label,
+                ),
+                if (showAiBadge)
+                  Positioned(
+                    right: -6,
+                    top: -4,
+                    child: _buildAiBadge(),
+                  ),
+                if (badgeCount != null)
+                  Positioned(
+                    right: -2,
+                    top: -2,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                      constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
+                      alignment: Alignment.center,
+                      child: Text(
+                        badgeCount.toString(),
+                        style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+              color: filled ? Colors.pink : Colors.grey.shade600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Simpan foto struk ke penyimpanan lokal aplikasi (bekerja offline)
+  Future<String?> _saveReceiptImageLocally(XFile picked) async {
+    try {
+      final docsDir = await getApplicationDocumentsDirectory();
+      final receiptDir = Directory('${docsDir.path}/receipts');
+      if (!await receiptDir.exists()) {
+        await receiptDir.create(recursive: true);
+      }
+      final ext = picked.path.contains('.') ? picked.path.split('.').last : 'jpg';
+      final savedPath = '${receiptDir.path}/struk_${DateTime.now().millisecondsSinceEpoch}.$ext';
+      await File(picked.path).copy(savedPath);
+      return savedPath;
+    } catch (e) {
+      debugPrint("Gagal menyimpan foto struk lokal: $e");
+      return null;
+    }
+  }
+
+  // Upload foto struk ke server Danaku (hanya saat online), balikan URL-nya
+  Future<String?> _uploadReceiptImage(String path) async {
+    if (!SyncService.instance.connectionStatus.value) return null;
+    try {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('${SyncService.instance.laravelBaseUrl}/receipts'),
+      );
+      request.files.add(await http.MultipartFile.fromPath('image', path));
+      final streamedResponse = await request.send().timeout(const Duration(seconds: 30));
+      final response = await http.Response.fromStream(streamedResponse);
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return jsonDecode(response.body)['url'];
+      }
+      debugPrint("Upload struk gagal: ${response.statusCode}");
+    } catch (e) {
+      debugPrint("Upload struk gagal: $e");
+    }
+    return null;
+  }
+
+  // Lampirkan foto struk tanpa AI (bisa dipakai saat offline)
+  Future<void> _attachReceiptPhotoOnly() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) => SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(15),
+              child: Text(
+                "Lampirkan Foto Struk",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black87),
+              ),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: Colors.pink),
+              title: const Text("Kamera"),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: Colors.pink),
+              title: const Text("Galeri Foto"),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
+
+    final picked = await ImagePicker().pickImage(
+      source: source,
+      maxWidth: 1280,
+      maxHeight: 1280,
+      imageQuality: 80,
+    );
+    if (picked == null) return;
+
+    final savedPath = await _saveReceiptImageLocally(picked);
+    if (savedPath != null && mounted) {
+      setState(() => _receiptImagePath = savedPath);
+      CustomSnackBar.show(
+        context,
+        message: "Foto struk terlampir & tersimpan di perangkat",
+        isSuccess: true,
+      );
+    }
+  }
+
+  void _previewReceiptImage() {
+    if (_receiptImagePath == null) return;
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Image.file(
+                File(_receiptImagePath!),
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stack) => Container(
+                  padding: const EdgeInsets.all(30),
+                  color: Colors.white,
+                  child: const Text("Foto tidak ditemukan", style: TextStyle(color: Colors.grey)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.pink,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+              ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Tutup", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildTypeToggle(String type, String label, IconData icon) {
     bool isActive = jenis == type;
     return GestureDetector(
       onTap: () {
         setState(() {
           jenis = type;
+          // Saat mode transfer, kalkulator ditutup otomatis agar pilihan dompet terlihat
+          _isNumpadCollapsed = type == 'transfer';
           _loadCategories();
         });
       },
@@ -1561,7 +1913,7 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
   }
 
   void _queueCurrentTransaction() {
-    double? parsedAmount = double.tryParse(nominal);
+    double? parsedAmount = evaluateExpression(nominal);
     double baseAmount = parsedAmount ?? 0;
     int jumlah = selectedCurrency == "USD" ? (baseAmount * usdToIdr).toInt() : baseAmount.toInt();
 
@@ -1614,6 +1966,7 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
         walletNama: selectedWallet!.nama,
         kategori: selectedCategory!.nama,
         itemsJson: _activeItems != null ? jsonEncode(_activeItems) : null,
+        receiptPath: _receiptImagePath,
       ));
     }
 
@@ -1622,6 +1975,7 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
       keteranganController.clear();
       _scannedReceiptName = null;
       _activeItems = null;
+      _receiptImagePath = null;
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
