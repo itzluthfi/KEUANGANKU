@@ -15,8 +15,8 @@
 ### 🌐 Konsol Web Admin (Laravel)
 1.  **Dashboard Finansial Global**: Memantau grafik statistik pengeluaran kategori paling boros dan wallet teraktif secara agregat.
 2.  **Monitoring Token AI Lanjutan**:
-    *   Sisa kuota harian otomatis untuk **Google Gemini**, **Groq Qwen**, dan **Nvidia Llama**.
-    *   Waktu respons respons (Latency dalam *milliseconds*) menggunakan grafik garis interaktif (Chart.js).
+    *   Sisa kuota harian otomatis untuk **Google Gemini**, **Cerebras Gemma**, **Groq Qwen**, **Cloudflare Llama**, dan **Nvidia Llama**.
+    *   Waktu respons respons (Latency dalam *milliseconds*) menggunakan grafik grafik garis interaktif (Chart.js).
     *   Persentase kehandalan tingkat kesuksesan vs kegagalan panggilan API.
 3.  **Kelola Pengguna**: Meninjau status pencadangan data, ukuran database backup di awan, serta fitur hapus akun pengguna yang diamankan dengan modal SweetAlert 2 yang cantik.
 
@@ -58,6 +58,9 @@
     GEMINI_API_KEY=your_gemini_key
     GROQ_API_KEY=your_groq_key
     NVIDIA_API_KEY=your_nvidia_key
+    CLOUDFLARE_ACCOUNT_ID=your_cloudflare_account_id
+    CLOUDFLARE_API_TOKEN=your_cloudflare_api_token
+    CEREBRAS_API_KEY=your_cerebras_key
     ```
 3.  **Instalasi Dependensi & Set Hak Akses**:
     ```bash
@@ -100,15 +103,36 @@
 
 ## 📈 Alur Kerja Sistem Fallback AI & Logs
 
-Ketika pengguna melakukan Speech-to-Text atau scan struk belanja:
+Ketika pengguna melakukan input suara (Speech-to-Text) atau pemindaian struk belanja (OCR):
+
+### 1. Rantai Fallback Parser Suara / Teks (STT)
 ```mermaid
 graph TD
-    A[Aplikasi Request AI] --> B{Panggil Gemini}
+    A[Aplikasi Request STT AI] --> B{Panggil Gemini}
     B -- Sukses --> C[Simpan Log Sukses & Return Data]
-    B -- Gagal/Limit --> D{Panggil Groq}
+    B -- Gagal/Limit --> D{Panggil Cerebras}
     D -- Sukses --> C
-    D -- Gagal/Limit --> E{Panggil Nvidia}
+    D -- Gagal/Limit --> E{Panggil Groq}
     E -- Sukses --> C
-    E -- Gagal --> F[Kembalikan Error 500 & Log Failed]
+    E -- Gagal/Limit --> F{Panggil Cloudflare}
+    F -- Sukses --> C
+    F -- Gagal/Limit --> G{Panggil Nvidia}
+    G -- Sukses --> C
+    G -- Gagal --> H[Kembalikan Error 500 & Log Failed]
 ```
+
+### 2. Rantai Fallback Parser Struk Belanja (OCR)
+```mermaid
+graph TD
+    A[Aplikasi Request OCR AI] --> B{Panggil Gemini}
+    B -- Sukses --> C[Simpan Log Sukses & Return Data]
+    B -- Gagal/Limit --> D{Panggil Cloudflare Vision}
+    D -- Sukses --> C
+    D -- Gagal/Limit --> E{Panggil Groq}
+    E -- Sukses --> C
+    E -- Gagal/Limit --> F{Panggil Nvidia}
+    F -- Sukses --> C
+    F -- Gagal --> G[Kembalikan Error 500 & Log Failed]
+```
+
 Setiap keberhasilan dan kegagalan proses di atas akan dihitung kecepatannya (latency) dan dicatat ke dalam database untuk divisualisasikan pada menu **Monitoring Token AI** di panel administrator.
