@@ -21,8 +21,15 @@ class TransactionInputPage extends StatefulWidget {
   final String initialJenis;
   final Transaksi? initialTransaksi;
   final bool autoScan; // langsung buka scan struk (dipakai App Shortcut homescreen)
+  final bool autoVoice; // langsung buka input suara AI (dipakai App Shortcut homescreen)
 
-  const TransactionInputPage({super.key, required this.initialJenis, this.initialTransaksi, this.autoScan = false});
+  const TransactionInputPage({
+    super.key,
+    required this.initialJenis,
+    this.initialTransaksi,
+    this.autoScan = false,
+    this.autoVoice = false,
+  });
 
   @override
   State<TransactionInputPage> createState() => _TransactionInputPageState();
@@ -116,6 +123,13 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
     if (widget.autoScan) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _scanReceipt();
+      });
+    }
+
+    // Dibuka lewat App Shortcut "Catat dengan Suara": langsung mulai mendengarkan
+    if (widget.autoVoice) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _toggleListening();
       });
     }
   }
@@ -419,7 +433,12 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (!mounted) return;
-        _showReceiptItemsBottomSheet(data);
+        // Bukti transfer (bank/e-wallet) terdeteksi → langsung mode transfer
+        if ((data['jenis'] ?? '').toString().toLowerCase() == 'transfer') {
+          _applyTransferResult(data);
+        } else {
+          _showReceiptItemsBottomSheet(data);
+        }
       } else {
         final errorMsg = jsonDecode(response.body)['message'] ?? "Gagal memproses struk.";
         if (!mounted) return;
@@ -526,6 +545,13 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+
+        // Transfer antar dompet (mis. "transfer 50 ribu dari utama ke dana")
+        if ((data['jenis'] ?? '').toString().toLowerCase() == 'transfer') {
+          if (!mounted) return;
+          _applyTransferResult(data);
+          return;
+        }
 
         // Deteksi hasil campuran (ada item masuk DAN keluar sekaligus):
         // tiap item diantrekan sebagai transaksi terpisah dengan jenisnya sendiri
@@ -671,6 +697,40 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
   String _itemJenis(Map item, Map data) {
     final raw = (item['jenis'] ?? data['jenis'] ?? 'keluar').toString().toLowerCase();
     return (raw == 'masuk' || raw == 'pemasukan') ? 'masuk' : 'keluar';
+  }
+
+  // Cocokkan nama dompet hasil AI (mis. "utama", "dana") dengan dompet di aplikasi
+  Wallet? _findWalletByName(String? name) {
+    if (name == null || name.trim().isEmpty) return null;
+    final q = name.toLowerCase().trim();
+    for (final w in AppData.wallets) {
+      if (w.nama.toLowerCase() == q) return w;
+    }
+    for (final w in AppData.wallets) {
+      final n = w.nama.toLowerCase();
+      if (n.contains(q) || q.contains(n)) return w;
+    }
+    return null;
+  }
+
+  // Terapkan hasil AI berjenis transfer: pindah ke mode transfer & isi otomatis
+  void _applyTransferResult(Map data) {
+    setState(() {
+      jenis = 'transfer';
+      _isNumpadCollapsed = true; // tutup kalkulator agar kartu dompet terlihat
+      nominal = (data['jumlah'] ?? 0).toString();
+      keteranganController.text = (data['keterangan'] ?? '').toString();
+      selectedDate = safeParseDate(data['tanggal']?.toString());
+      final asal = _findWalletByName(data['dompet_asal']?.toString());
+      final tujuan = _findWalletByName(data['dompet_tujuan']?.toString());
+      if (asal != null) selectedWallet = asal;
+      if (tujuan != null) selectedWalletTujuan = tujuan;
+    });
+    CustomSnackBar.show(
+      context,
+      message: "Transfer terdeteksi! Periksa dompet asal & tujuan, lalu tekan Simpan.",
+      isSuccess: true,
+    );
   }
 
   DateTime safeParseDate(String? dateStr) {

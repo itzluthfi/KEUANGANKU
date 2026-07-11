@@ -468,7 +468,7 @@ class AIController extends Controller
 Extract:
 1. 'jumlah': The transaction amount as a pure integer (numbers only, e.g. \"15 ribu\" -> 15000, \"satu juta\" -> 1000000).
 2. 'keterangan': Description of the transaction (string in Indonesian, e.g., 'makan bakso').
-3. 'jenis': Either 'masuk' (if it is income/receiving money) or 'keluar' (if it is expense/spending money).
+3. 'jenis': 'masuk' (income/receiving money), 'keluar' (expense/spending money), or 'transfer' (moving money between the user's OWN wallets/accounts, e.g. \"transfer 50 ribu dari dompet utama ke dana\", \"pindahin 100 ribu dari BCA ke gopay\").
 4. 'kategori': Choose ONE category matching best from this list:
    - For 'keluar': {$keluarList}.
    - For 'masuk': {$masukList}.
@@ -481,6 +481,7 @@ If no matching category is found, default to 'Lainnya' for masuk, and 'Harian' f
    - 'kategori': Choose ONE category matching this item best, using the 'keluar' list for expense items and the 'masuk' list for income items.
    * PRICE HANDLING RULE: If the user mentions multiple items but does not specify individual prices (e.g., \"beli bensin dan sate seharga 30 ribu\"), split the total 'jumlah' equally among the items (e.g., bensin 15000, sate 15000). If no prices are mentioned at all, set 'harga' to 0 for each item. The sum of 'harga' of all items must equal 'jumlah'.
    * MIXED RULE: When items contain BOTH 'masuk' and 'keluar', still extract every item with its own 'jenis'. Set the top-level 'jenis' to the 'jenis' of the item with the largest amount, and the top-level 'jumlah' to the sum of ALL item 'harga' regardless of their 'jenis'.
+6. 'dompet_asal' and 'dompet_tujuan': ONLY when 'jenis' is 'transfer' — the source and destination wallet/account names mentioned by the user (strings, e.g. 'Utama', 'Dana', 'BCA'). Set both to null when not a transfer. For transfers: set 'kategori' to 'Transfer', 'items' to an empty array, and 'keterangan' to a short description like 'Transfer ke Dana'.
 
 Output must be ONLY a valid JSON object matching the schema. Do not output any markdown formatting like ```json.";
     }
@@ -494,13 +495,14 @@ Output must be ONLY a valid JSON object matching the schema. Do not output any m
 2. 'keterangan': The merchant or store name (string in Indonesian).
 3. 'kategori': Choose ONE category matching best from this list: {$keluarList}. Default to 'Harian' if none match.
 4. 'tanggal': Receipt transaction date in 'YYYY-MM-DD' format. If not found, use today's date (" . date('Y-m-d') . ").
-5. 'jenis': Always set to 'keluar'.
+5. 'jenis': 'keluar' for purchase receipts. Use 'transfer' ONLY if the image is clearly a proof of fund transfer between accounts (bukti transfer bank, mobile banking, or e-wallet screenshot) instead of a purchase receipt.
 6. 'items': An array of objects, where each object represents an item on the receipt and contains:
    - 'nama': The item description or name (string).
    - 'qty': Quantity purchased (integer, default 1 if not readable).
    - 'harga': Total price for this item (integer, i.e. qty * unit_price). Always positive.
    - 'kategori': Choose ONE category from this list matching the item best: {$keluarList}. Default to 'Harian'.
    - 'jenis': 'keluar' by default. Use 'masuk' ONLY for lines that clearly represent money received by the customer, such as refund, cashback, reimbursement, or deposit returned.
+7. 'dompet_asal' and 'dompet_tujuan': ONLY when 'jenis' is 'transfer' — the sender and recipient account/bank/e-wallet names if readable (strings), otherwise null. For transfer proofs: set 'keterangan' like 'Transfer ke <recipient name>', 'kategori' to 'Transfer', and 'items' to an empty array.
 
 Output must be ONLY a valid JSON object matching the schema. Do not output any markdown formatting like ```json.";
     }
@@ -552,13 +554,18 @@ Output must be ONLY a valid JSON object matching the schema. Do not output any m
         }
 
         // Normalisasi field yang dikembalikan
+        $jenisRaw = isset($decoded['jenis']) ? strtolower((string) $decoded['jenis']) : 'keluar';
+        $jenis = in_array($jenisRaw, ['masuk', 'transfer'], true) ? $jenisRaw : 'keluar';
+
         return [
             'jumlah' => isset($decoded['jumlah']) ? (int) $decoded['jumlah'] : 0,
             'keterangan' => isset($decoded['keterangan']) ? (string) $decoded['keterangan'] : '',
-            'jenis' => isset($decoded['jenis']) && strtolower($decoded['jenis']) === 'masuk' ? 'masuk' : 'keluar',
+            'jenis' => $jenis,
             'kategori' => isset($decoded['kategori']) ? (string) $decoded['kategori'] : 'Harian',
             'tanggal' => $tanggalFormatted,
             'items' => isset($decoded['items']) ? (array) $decoded['items'] : [],
+            'dompet_asal' => isset($decoded['dompet_asal']) && $decoded['dompet_asal'] !== '' ? (string) $decoded['dompet_asal'] : null,
+            'dompet_tujuan' => isset($decoded['dompet_tujuan']) && $decoded['dompet_tujuan'] !== '' ? (string) $decoded['dompet_tujuan'] : null,
         ];
     }
 

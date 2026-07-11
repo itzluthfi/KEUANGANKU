@@ -56,6 +56,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     quickActions.setShortcutItems(const [
       ShortcutItem(type: 'add_expense', localizedTitle: 'Catat Pengeluaran'),
       ShortcutItem(type: 'add_income', localizedTitle: 'Catat Pemasukan'),
+      ShortcutItem(type: 'voice_input', localizedTitle: 'Catat dengan Suara (AI)'),
       ShortcutItem(type: 'scan_receipt', localizedTitle: 'Scan Struk (AI)'),
     ]);
   }
@@ -77,6 +78,12 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
           await Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const TransactionInputPage(initialJenis: 'masuk')),
+          );
+          break;
+        case 'voice_input':
+          await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const TransactionInputPage(initialJenis: 'keluar', autoVoice: true)),
           );
           break;
         case 'scan_receipt':
