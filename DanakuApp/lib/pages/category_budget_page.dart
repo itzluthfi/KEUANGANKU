@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../data/app_data.dart';
 import '../data/database_helper.dart';
+import '../widgets/custom_snackbar.dart';
 
 class CategoryBudgetPage extends StatefulWidget {
   const CategoryBudgetPage({super.key});
@@ -90,9 +91,7 @@ class _CategoryBudgetPageState extends State<CategoryBudgetPage> {
                 await DatabaseHelper.instance.deleteCategoryBudget(cat.nama);
                 _loadData();
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Anggaran ${cat.nama} berhasil dihapus"), behavior: SnackBarBehavior.floating),
-                  );
+                  CustomSnackBar.show(context, message: "Anggaran ${cat.nama} berhasil dihapus");
                 }
               },
               child: const Text("Hapus", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
@@ -113,9 +112,7 @@ class _CategoryBudgetPageState extends State<CategoryBudgetPage> {
                 await DatabaseHelper.instance.saveCategoryBudget(cat.nama, val);
                 _loadData();
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Anggaran ${cat.nama} berhasil diatur!"), behavior: SnackBarBehavior.floating, backgroundColor: Colors.pink),
-                  );
+                  CustomSnackBar.show(context, message: "Anggaran ${cat.nama} berhasil diatur!", isSuccess: true);
                 }
               }
             },

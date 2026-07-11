@@ -1,4 +1,7 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:quick_actions/quick_actions.dart';
 import 'home_page.dart';
 import 'wallet_page.dart';
 import 'report_page.dart';
@@ -21,11 +24,13 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   final GlobalKey<HomePageState> _homeKey = GlobalKey();
   bool _showPinLock = false;
   DateTime? _pausedTime;
+  String? _pendingShortcut;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _setupQuickActions();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkPinLock().then((_) {
         if (!_showPinLock && widget.initialRoute == '/add_transaction') {
@@ -34,7 +39,54 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
             MaterialPageRoute(builder: (context) => const TransactionInputPage(initialJenis: 'keluar')),
           );
         }
+        _handlePendingShortcut();
       });
+    });
+  }
+
+  // App Shortcuts: tekan-lama ikon aplikasi di homescreen (Android/iOS)
+  void _setupQuickActions() {
+    if (kIsWeb || !(Platform.isAndroid || Platform.isIOS)) return;
+    const quickActions = QuickActions();
+    quickActions.initialize((String type) {
+      // Terpanggil saat app dibuka lewat shortcut (cold start maupun resume)
+      _pendingShortcut = type;
+      _handlePendingShortcut();
+    });
+    quickActions.setShortcutItems(const [
+      ShortcutItem(type: 'add_expense', localizedTitle: 'Catat Pengeluaran'),
+      ShortcutItem(type: 'add_income', localizedTitle: 'Catat Pemasukan'),
+      ShortcutItem(type: 'scan_receipt', localizedTitle: 'Scan Struk (AI)'),
+    ]);
+  }
+
+  void _handlePendingShortcut() {
+    final type = _pendingShortcut;
+    if (type == null || !mounted || _showPinLock) return;
+    _pendingShortcut = null;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      switch (type) {
+        case 'add_expense':
+          await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const TransactionInputPage(initialJenis: 'keluar')),
+          );
+          break;
+        case 'add_income':
+          await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const TransactionInputPage(initialJenis: 'masuk')),
+          );
+          break;
+        case 'scan_receipt':
+          await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const TransactionInputPage(initialJenis: 'keluar', autoScan: true)),
+          );
+          break;
+      }
+      _homeKey.currentState?.loadData();
     });
   }
 

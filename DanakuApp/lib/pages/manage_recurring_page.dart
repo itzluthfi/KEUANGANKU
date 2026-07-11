@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../data/app_data.dart';
 import '../data/database_helper.dart';
+import '../widgets/custom_snackbar.dart';
 
 class ManageRecurringPage extends StatefulWidget {
   const ManageRecurringPage({super.key});
@@ -42,13 +43,7 @@ class _ManageRecurringPageState extends State<ManageRecurringPage> {
     await DatabaseHelper.instance.deleteRecurringTransaction(id);
     _loadData();
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Transaksi rutin berhasil dihapus."),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: Colors.redAccent,
-        )
-      );
+      CustomSnackBar.show(context, message: "Transaksi rutin berhasil dihapus.");
     }
   }
 
@@ -263,12 +258,7 @@ class _ManageRecurringPageState extends State<ManageRecurringPage> {
                           final ket = keteranganController.text.trim();
                           
                           if (ket.isEmpty || nominal <= 0 || selectedWallet == null || selectedKategori == null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text("Lengkapi semua isian dengan benar."),
-                                backgroundColor: Colors.redAccent,
-                              )
-                            );
+                            CustomSnackBar.show(context, message: "Lengkapi semua isian dengan benar.", isError: true);
                             return;
                           }
 

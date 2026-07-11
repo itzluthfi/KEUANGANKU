@@ -473,11 +473,14 @@ Extract:
    - For 'keluar': {$keluarList}.
    - For 'masuk': {$masukList}.
 If no matching category is found, default to 'Lainnya' for masuk, and 'Harian' for keluar.
-5. 'items': If the spoken text mentions multiple separate item purchases (e.g. \"bensin 30 ribu dan sate 20 ribu\" or \"beli bensin dan sate total 50 ribu\"), extract them into an array of objects where each object contains:
+5. 'items': If the spoken text mentions multiple separate transactions or item purchases (e.g. \"bensin 30 ribu dan sate 20 ribu\" or \"beli bensin dan sate total 50 ribu\"), extract them into an array of objects where each object contains:
    - 'nama': The item description or name (string).
    - 'qty': Quantity purchased (integer, default 1).
-   - 'harga': Total price for this item (integer).
+   - 'harga': Total amount for this item (integer).
+   - 'jenis': 'masuk' if this specific item is income/receiving money, 'keluar' if it is spending. Items MAY have different 'jenis' from each other (e.g. \"beli bensin 20 ribu dan dapat uang gojek 30 ribu\" -> bensin is 'keluar' 20000, uang gojek is 'masuk' 30000).
+   - 'kategori': Choose ONE category matching this item best, using the 'keluar' list for expense items and the 'masuk' list for income items.
    * PRICE HANDLING RULE: If the user mentions multiple items but does not specify individual prices (e.g., \"beli bensin dan sate seharga 30 ribu\"), split the total 'jumlah' equally among the items (e.g., bensin 15000, sate 15000). If no prices are mentioned at all, set 'harga' to 0 for each item. The sum of 'harga' of all items must equal 'jumlah'.
+   * MIXED RULE: When items contain BOTH 'masuk' and 'keluar', still extract every item with its own 'jenis'. Set the top-level 'jenis' to the 'jenis' of the item with the largest amount, and the top-level 'jumlah' to the sum of ALL item 'harga' regardless of their 'jenis'.
 
 Output must be ONLY a valid JSON object matching the schema. Do not output any markdown formatting like ```json.";
     }
@@ -495,8 +498,9 @@ Output must be ONLY a valid JSON object matching the schema. Do not output any m
 6. 'items': An array of objects, where each object represents an item on the receipt and contains:
    - 'nama': The item description or name (string).
    - 'qty': Quantity purchased (integer, default 1 if not readable).
-   - 'harga': Total price for this item (integer, i.e. qty * unit_price).
+   - 'harga': Total price for this item (integer, i.e. qty * unit_price). Always positive.
    - 'kategori': Choose ONE category from this list matching the item best: {$keluarList}. Default to 'Harian'.
+   - 'jenis': 'keluar' by default. Use 'masuk' ONLY for lines that clearly represent money received by the customer, such as refund, cashback, reimbursement, or deposit returned.
 
 Output must be ONLY a valid JSON object matching the schema. Do not output any markdown formatting like ```json.";
     }

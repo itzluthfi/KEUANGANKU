@@ -17,6 +17,7 @@ import 'manage_wallet_page.dart';
 import 'pin_lock_page.dart';
 import 'manage_recurring_page.dart';
 import 'notification_inbox_page.dart';
+import '../widgets/custom_snackbar.dart';
 import 'package:lottie/lottie.dart';
 import 'category_budget_page.dart';
 import 'debts_page.dart';
@@ -282,13 +283,7 @@ class _SettingPageState extends State<SettingPage> {
       ];
       _loadCustomSettings();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Data lokal berhasil direset ke nol."),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.redAccent,
-          )
-        );
+        CustomSnackBar.show(context, message: "Data lokal berhasil direset ke nol.");
       }
     }
   }
@@ -302,13 +297,7 @@ class _SettingPageState extends State<SettingPage> {
     ).then((success) {
       if (success == true) {
         _checkLoginStatus();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Berhasil menghubungkan ke Awan Danaku!"),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.green,
-          )
-        );
+        CustomSnackBar.show(context, message: "Berhasil menghubungkan ke Awan Danaku!", isSuccess: true);
       }
     });
   }
@@ -327,13 +316,7 @@ class _SettingPageState extends State<SettingPage> {
       await SyncService.instance.logout();
       _checkLoginStatus();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Sambungan awan diputuskan."),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.blueGrey,
-          )
-        );
+        CustomSnackBar.show(context, message: "Sambungan awan diputuskan.");
       }
     }
   }
@@ -351,13 +334,7 @@ class _SettingPageState extends State<SettingPage> {
     );
 
     if (result == true && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Pencadangan selesai! Data Anda aman."),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: Colors.green,
-        )
-      );
+      CustomSnackBar.show(context, message: "Pencadangan selesai! Data Anda aman.", isSuccess: true);
     }
   }
 
@@ -379,13 +356,7 @@ class _SettingPageState extends State<SettingPage> {
 
     if (backupPreview == null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Gagal mengambil data cadangan. Pastikan koneksi internet terhubung."),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.red,
-          ),
-        );
+        CustomSnackBar.show(context, message: "Gagal mengambil data cadangan. Pastikan koneksi internet terhubung.", isError: true);
       }
       return;
     }
@@ -428,13 +399,7 @@ class _SettingPageState extends State<SettingPage> {
 
     if (result == true && mounted) {
       _loadCustomSettings();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Pemulihan selesai! Data keuangan diperbarui."),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: Colors.green,
-        )
-      );
+      CustomSnackBar.show(context, message: "Pemulihan selesai! Data keuangan diperbarui.", isSuccess: true);
     }
   }
 
@@ -710,13 +675,7 @@ class _SettingPageState extends State<SettingPage> {
                               _loadCustomSettings();
                               if (context.mounted) Navigator.pop(context);
                               if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text("Batas anggaran berhasil diperbarui!"),
-                                    behavior: SnackBarBehavior.floating,
-                                    backgroundColor: Colors.pink,
-                                  )
-                                );
+                                CustomSnackBar.show(context, message: "Batas anggaran berhasil diperbarui!", isSuccess: true);
                               }
                             },
                             child: const Text("Simpan", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
@@ -891,13 +850,7 @@ class _SettingPageState extends State<SettingPage> {
                                   }
   
                                   if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text("Pengingat diubah ke pukul $formatted!"),
-                                        behavior: SnackBarBehavior.floating,
-                                        backgroundColor: Colors.pink,
-                                      )
-                                    );
+                                    CustomSnackBar.show(context, message: "Pengingat diubah ke pukul $formatted!", isSuccess: true);
                                   }
                                 }
                               } : null,

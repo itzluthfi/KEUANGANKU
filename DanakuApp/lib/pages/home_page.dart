@@ -1518,10 +1518,16 @@ class HomePageState extends State<HomePage> {
                 ScaffoldMessenger.of(context).clearSnackBars();
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: const Text("Transaksi berhasil dihapus"),
+                    content: const Row(
+                      children: [
+                        Icon(Icons.delete_outline_rounded, color: Colors.white, size: 18),
+                        SizedBox(width: 10),
+                        Text("Transaksi berhasil dihapus", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      ],
+                    ),
                     action: SnackBarAction(
                       label: "URUNGKAN",
-                      textColor: Colors.pink.shade100,
+                      textColor: Colors.white,
                       onPressed: () async {
                         await DatabaseHelper.instance.insertTransaksi(t);
                         loadData();
@@ -1529,7 +1535,9 @@ class HomePageState extends State<HomePage> {
                     ),
                     duration: const Duration(seconds: 5),
                     behavior: SnackBarBehavior.floating,
-                    backgroundColor: Colors.black87,
+                    backgroundColor: const Color(0xFFFF528F),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    elevation: 4,
                   ),
                 );
               }

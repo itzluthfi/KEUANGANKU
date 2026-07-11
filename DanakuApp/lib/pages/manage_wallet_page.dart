@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../data/app_data.dart';
 import '../data/database_helper.dart';
+import '../widgets/custom_snackbar.dart';
 
 class ManageWalletPage extends StatefulWidget {
   const ManageWalletPage({super.key});
@@ -117,9 +118,7 @@ class _ManageWalletPageState extends State<ManageWalletPage> {
                             });
                             await DatabaseHelper.instance.saveWallets(AppData.wallets);
                             if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text("Akun '${w.nama}' berhasil dihapus.")),
-                              );
+                              CustomSnackBar.show(context, message: "Akun '${w.nama}' berhasil dihapus.");
                             }
                           },
                           child: InkWell(

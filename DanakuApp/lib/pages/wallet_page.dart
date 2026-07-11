@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../data/app_data.dart';
 import '../data/database_helper.dart';
+import '../widgets/custom_snackbar.dart';
 
 import 'manage_wallet_page.dart';
 import 'wallet_detail_page.dart';
@@ -128,7 +129,7 @@ class _WalletPageState extends State<WalletPage> {
                                         constraints: const BoxConstraints(),
                                         icon: const Icon(Icons.monetization_on, color: Colors.white, size: 22),
                                         onPressed: () {
-                                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Currency: IDR")));
+                                          CustomSnackBar.show(context, message: "Currency: IDR");
                                         },
                                       ),
                                       const SizedBox(width: 15),

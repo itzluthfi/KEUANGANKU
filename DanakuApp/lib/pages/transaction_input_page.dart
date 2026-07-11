@@ -20,8 +20,9 @@ import '../widgets/custom_snackbar.dart';
 class TransactionInputPage extends StatefulWidget {
   final String initialJenis;
   final Transaksi? initialTransaksi;
+  final bool autoScan; // langsung buka scan struk (dipakai App Shortcut homescreen)
 
-  const TransactionInputPage({super.key, required this.initialJenis, this.initialTransaksi});
+  const TransactionInputPage({super.key, required this.initialJenis, this.initialTransaksi, this.autoScan = false});
 
   @override
   State<TransactionInputPage> createState() => _TransactionInputPageState();
@@ -54,6 +55,7 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
   List<dynamic>? _activeItems;
   String? _receiptImagePath;
   bool _isNumpadCollapsed = false;
+  bool _voiceManuallyStopped = false;
 
   late AnimationController _pulseController;
   final List<Transaksi> _queuedTransactions = [];
@@ -109,6 +111,13 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
       vsync: this,
       duration: const Duration(milliseconds: 800),
     )..repeat(reverse: true);
+
+    // Dibuka lewat App Shortcut "Scan Struk": langsung tampilkan pilihan kamera/galeri
+    if (widget.autoScan) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _scanReceipt();
+      });
+    }
   }
 
   @override
@@ -458,13 +467,23 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
     bool available = await _speech.initialize(
       onStatus: (val) {
         debugPrint('Speech Status: $val');
-        if (val == 'notListening') {
-          setState(() => _isListening = false);
+        if (val == 'notListening' || val == 'done') {
+          // Mic berhenti sendiri karena jeda hening — jangan buang teks yang
+          // sudah tertangkap: proses otomatis seolah user menekan "Selesai".
+          if (mounted && _isListening && !_voiceManuallyStopped) {
+            setState(() => _isListening = false);
+            final text = _spokenText.trim();
+            if (text.isNotEmpty) {
+              _processVoiceCommand(text);
+            } else {
+              CustomSnackBar.show(context, message: "Tidak ada suara yang terdeteksi.", isError: true);
+            }
+          }
         }
       },
       onError: (val) {
         debugPrint('Speech Error: $val');
-        setState(() => _isListening = false);
+        if (mounted) setState(() => _isListening = false);
       },
     );
 
@@ -478,6 +497,7 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
     setState(() {
       _isListening = true;
       _spokenText = "";
+      _voiceManuallyStopped = false;
     });
 
     _speech.listen(
@@ -487,6 +507,8 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
         });
       },
       localeId: "id_ID",
+      listenFor: const Duration(seconds: 60),
+      pauseFor: const Duration(seconds: 5),
     );
 
     if (!mounted) return;
@@ -504,6 +526,43 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+
+        // Deteksi hasil campuran (ada item masuk DAN keluar sekaligus):
+        // tiap item diantrekan sebagai transaksi terpisah dengan jenisnya sendiri
+        final List<dynamic> items = (data['items'] as List?) ?? [];
+        final jenisSet = items
+            .whereType<Map>()
+            .map((i) => _itemJenis(i, data))
+            .toSet();
+        if (items.length > 1 && jenisSet.length > 1) {
+          final tanggal = safeParseDate(data['tanggal']);
+          int queued = 0;
+          for (final item in items) {
+            if (item is! Map) continue;
+            final harga = ((item['harga'] ?? 0) as num).toInt();
+            if (harga <= 0) continue;
+            final itemJenis = _itemJenis(item, data);
+            _queuedTransactions.add(Transaksi(
+              keterangan: (item['nama'] ?? data['keterangan'] ?? 'Transaksi').toString(),
+              jumlah: harga,
+              jenis: itemJenis,
+              tanggal: tanggal,
+              walletNama: selectedWallet?.nama ?? AppData.wallets.first.nama,
+              kategori: (item['kategori'] ?? (itemJenis == 'masuk' ? 'Lainnya' : 'Harian')).toString(),
+            ));
+            queued++;
+          }
+          setState(() {});
+          if (!mounted) return;
+          CustomSnackBar.show(
+            context,
+            message: "$queued transaksi (masuk & keluar) masuk antrean. Tekan Simpan Semua untuk menyimpan.",
+            isSuccess: true,
+          );
+          _showQueueManager();
+          return;
+        }
+
         setState(() {
           nominal = data['jumlah'].toString();
           keteranganController.text = data['keterangan'];
@@ -605,6 +664,13 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
         }
       }
     });
+  }
+
+  // Jenis efektif sebuah item hasil AI: pakai 'jenis' milik item bila ada,
+  // fallback ke jenis utama respons (mendukung campuran masuk & keluar)
+  String _itemJenis(Map item, Map data) {
+    final raw = (item['jenis'] ?? data['jenis'] ?? 'keluar').toString().toLowerCase();
+    return (raw == 'masuk' || raw == 'pemasukan') ? 'masuk' : 'keluar';
   }
 
   DateTime safeParseDate(String? dateStr) {
@@ -1244,6 +1310,7 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                                     ),
                                     onPressed: () {
+                                      _voiceManuallyStopped = true;
                                       _speech.stop();
                                       setState(() => _isListening = false);
                                     },
@@ -1260,6 +1327,7 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
                                       elevation: 0,
                                     ),
                                     onPressed: () {
+                                      _voiceManuallyStopped = true;
                                       _speech.stop();
                                       setState(() => _isListening = false);
                                       if (_spokenText.isNotEmpty) {
@@ -1814,10 +1882,14 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
                             itemCount: items.length,
                             itemBuilder: (context, index) {
                               final item = items[index];
+                              final isItemMasuk = _itemJenis(item as Map, data) == 'masuk';
                               return ListTile(
                                 title: Text(item['nama'] ?? 'Item', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                                 subtitle: Text("${item['qty'] ?? 1}x @ Rp${NumberFormat.decimalPattern('id').format((item['harga'] ?? 0) / (item['qty'] ?? 1))}", style: const TextStyle(fontSize: 12)),
-                                trailing: Text("Rp${NumberFormat.decimalPattern('id').format(item['harga'] ?? 0)}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+                                trailing: Text(
+                                  "${isItemMasuk ? '+' : '-'}Rp${NumberFormat.decimalPattern('id').format(item['harga'] ?? 0)}",
+                                  style: TextStyle(fontWeight: FontWeight.bold, color: isItemMasuk ? Colors.green : Colors.red),
+                                ),
                               );
                             },
                           ),
@@ -1844,13 +1916,14 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
                             ),
                             onPressed: () {
                               for (var item in items) {
+                                final itemJenis = _itemJenis(item as Map, data);
                                 _queuedTransactions.add(Transaksi(
                                   keterangan: "${item['nama']} (${data['keterangan']})",
                                   jumlah: (item['harga'] as num).toInt(),
-                                  jenis: "keluar",
+                                  jenis: itemJenis,
                                   tanggal: safeParseDate(data['tanggal']),
                                   walletNama: selectedWallet?.nama ?? AppData.wallets.first.nama,
-                                  kategori: item['kategori'] ?? data['kategori'] ?? 'Harian',
+                                  kategori: item['kategori'] ?? data['kategori'] ?? (itemJenis == 'masuk' ? 'Lainnya' : 'Harian'),
                                 ));
                               }
                               setState(() {
@@ -1918,25 +1991,25 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
     int jumlah = selectedCurrency == "USD" ? (baseAmount * usdToIdr).toInt() : baseAmount.toInt();
 
     if (jumlah <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Nominal harus lebih dari 0")));
+      CustomSnackBar.show(context, message: "Nominal harus lebih dari 0", isError: true);
       return;
     }
     if (jenis != 'transfer' && selectedCategory == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Pilih kategori terlebih dahulu")));
+      CustomSnackBar.show(context, message: "Pilih kategori terlebih dahulu", isError: true);
       return;
     }
     if (selectedWallet == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Pilih dompet terlebih dahulu")));
+      CustomSnackBar.show(context, message: "Pilih dompet terlebih dahulu", isError: true);
       return;
     }
 
     if (jenis == 'transfer') {
       if (selectedWalletTujuan == null) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Pilih dompet tujuan")));
+        CustomSnackBar.show(context, message: "Pilih dompet tujuan", isError: true);
         return;
       }
       if (selectedWallet!.nama == selectedWalletTujuan!.nama) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Dompet asal dan tujuan tidak boleh sama")));
+        CustomSnackBar.show(context, message: "Dompet asal dan tujuan tidak boleh sama", isError: true);
         return;
       }
       
@@ -1978,9 +2051,7 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
       _receiptImagePath = null;
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Transaksi berhasil dimasukkan ke antrean!")),
-    );
+    CustomSnackBar.show(context, message: "Transaksi berhasil dimasukkan ke antrean!", isSuccess: true);
   }
 
   void _showQueueManager() {

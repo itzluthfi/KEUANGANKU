@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import '../data/app_data.dart';
 import '../data/database_helper.dart';
 import '../services/pdf_service.dart';
+import '../widgets/custom_snackbar.dart';
 
 class ReportPage extends StatefulWidget {
   const ReportPage({super.key});
@@ -178,9 +179,7 @@ class _ReportPageState extends State<ReportPage> {
             tooltip: "Ekspor PDF",
             onPressed: () async {
               if (_transactions.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Tidak ada transaksi untuk diekspor"), behavior: SnackBarBehavior.floating),
-                );
+                CustomSnackBar.show(context, message: "Tidak ada transaksi untuk diekspor");
                 return;
               }
               showDialog(
@@ -192,9 +191,7 @@ class _ReportPageState extends State<ReportPage> {
                 await PdfService.instance.generateMonthlyReport(_transactions, _selectedMonth);
               } catch (e) {
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Gagal ekspor PDF: $e"), behavior: SnackBarBehavior.floating, backgroundColor: Colors.red),
-                  );
+                  CustomSnackBar.show(context, message: "Gagal ekspor PDF: $e", isError: true);
                 }
               } finally {
                 if (mounted) Navigator.pop(context);
