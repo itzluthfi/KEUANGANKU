@@ -344,7 +344,10 @@ class _SettingPageState extends State<SettingPage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator(color: Color(0xFFFF528F))),
+      builder: (context) => const _ThinkingDialog(
+        title: "Menghubungkan...",
+        message: "Mengambil pratinjau data cadangan dari server...",
+      ),
     );
 
     Map<String, dynamic>? backupPreview;
@@ -2354,6 +2357,79 @@ class _GridMenuItemState extends State<GridMenuItem> with SingleTickerProviderSt
               widget.label,
               textAlign: TextAlign.center,
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.black87),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ThinkingDialog extends StatefulWidget {
+  final String title;
+  final String message;
+
+  const _ThinkingDialog({required this.title, required this.message});
+
+  @override
+  State<_ThinkingDialog> createState() => _ThinkingDialogState();
+}
+
+class _ThinkingDialogState extends State<_ThinkingDialog> {
+  int _stateIndex = 0;
+  final List<String> _thinkingStates = [
+    "Menghubungkan ke server Danaku...",
+    "Mengamankan jalur komunikasi...",
+    "Membaca pratinjau berkas...",
+    "Menganalisis ukuran cadangan...",
+  ];
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) {
+        setState(() {
+          _stateIndex = (_stateIndex + 1) % _thinkingStates.length;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(
+              width: 48,
+              height: 48,
+              child: CircularProgressIndicator(
+                strokeWidth: 4,
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF528F)),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              widget.title,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _thinkingStates[_stateIndex],
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
             ),
           ],
         ),

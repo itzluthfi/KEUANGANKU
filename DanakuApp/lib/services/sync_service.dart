@@ -446,42 +446,26 @@ class SyncService {
           }
         }
 
-        // 3. Sinkronisasi & Merge Transaksi (Deduplikasi cerdas berdasarkan UUID)
+        // 3. Sinkronisasi & Merge Transaksi (Deduplikasi cerdas berdasarkan UUID dengan fallback detail)
         for (var t in transaksiList) {
           final tMap = Map<String, dynamic>.from(t);
           final uuid = tMap['uuid'] as String?;
-          if (uuid == null || uuid.isEmpty) continue;
+          
+          if (uuid != null && uuid.isNotEmpty) {
+            // Lewati jika transaksi sudah terhapus locally
+            final localDeleted = await txn.query('deleted_records', where: 'uuid = ?', whereArgs: [uuid]);
+            if (localDeleted.isNotEmpty) {
+              continue;
+            }
 
-          // Lewati jika transaksi sudah terhapus locally
-          final localDeleted = await txn.query('deleted_records', where: 'uuid = ?', whereArgs: [uuid]);
-          if (localDeleted.isNotEmpty) {
-            continue;
-          }
-
-          final existing = await txn.query(
-            'transaksi',
-            where: 'uuid = ?',
-            whereArgs: [uuid],
-          );
-
-          if (existing.isEmpty) {
-            await txn.insert('transaksi', {
-              'book_id': tMap['book_id'],
-              'keterangan': tMap['keterangan'],
-              'jumlah': tMap['jumlah'],
-              'jenis': tMap['jenis'],
-              'tanggal': tMap['tanggal'],
-              'walletNama': tMap['walletNama'],
-              'kategori': tMap['kategori'],
-              'items_json': tMap['items_json'],
-              'receipt_path': tMap['receipt_path'],
-              'receipt_url': tMap['receipt_url'],
-              'uuid': uuid,
-            });
-          } else {
-            await txn.update(
+            final existing = await txn.query(
               'transaksi',
-              {
+              where: 'uuid = ?',
+              whereArgs: [uuid],
+            );
+
+            if (existing.isEmpty) {
+              await txn.insert('transaksi', {
                 'book_id': tMap['book_id'],
                 'keterangan': tMap['keterangan'],
                 'jumlah': tMap['jumlah'],
@@ -492,10 +476,59 @@ class SyncService {
                 'items_json': tMap['items_json'],
                 'receipt_path': tMap['receipt_path'],
                 'receipt_url': tMap['receipt_url'],
-              },
-              where: 'uuid = ?',
-              whereArgs: [uuid],
+                'uuid': uuid,
+              });
+            } else {
+              await txn.update(
+                'transaksi',
+                {
+                  'book_id': tMap['book_id'],
+                  'keterangan': tMap['keterangan'],
+                  'jumlah': tMap['jumlah'],
+                  'jenis': tMap['jenis'],
+                  'tanggal': tMap['tanggal'],
+                  'walletNama': tMap['walletNama'],
+                  'kategori': tMap['kategori'],
+                  'items_json': tMap['items_json'],
+                  'receipt_path': tMap['receipt_path'],
+                  'receipt_url': tMap['receipt_url'],
+                },
+                where: 'uuid = ?',
+                whereArgs: [uuid],
+              );
+            }
+          } else {
+            // Fallback untuk data cadangan lama tanpa UUID
+            final existing = await txn.query(
+              'transaksi',
+              where: 'keterangan = ? AND jumlah = ? AND jenis = ? AND tanggal = ? AND walletNama = ? AND kategori = ? AND book_id = ?',
+              whereArgs: [
+                tMap['keterangan'],
+                tMap['jumlah'],
+                tMap['jenis'],
+                tMap['tanggal'],
+                tMap['walletNama'],
+                tMap['kategori'],
+                tMap['book_id'],
+              ],
             );
+
+            if (existing.isEmpty) {
+              final generatedUuid = DatabaseHelper.instance.generateUuid();
+              await txn.insert('transaksi', {
+                'book_id': tMap['book_id'],
+                'keterangan': tMap['keterangan'],
+                'jumlah': tMap['jumlah'],
+                'jenis': tMap['jenis'],
+                'tanggal': tMap['tanggal'],
+                'walletNama': tMap['walletNama'],
+                'kategori': tMap['kategori'],
+                'items_json': tMap['items_json'],
+                'receipt_path': tMap['receipt_path'],
+                'receipt_url': tMap['receipt_url'],
+                'uuid': generatedUuid,
+              });
+            }
           }
         }
       });
