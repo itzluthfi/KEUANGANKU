@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shortcut_short_label">Catat Transaksi</string>
+    <string name="shortcut_long_label">Catat Transaksi Baru</string>
+    <string name="shortcut_disabled_message">Fitur shortcut dinonaktifkan</string>
+</resources>

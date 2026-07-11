@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../data/database_helper.dart';
+import '../services/notification_service.dart';
 
 class DebtsPage extends StatefulWidget {
   const DebtsPage({super.key});
@@ -184,7 +185,7 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
                       final amount = int.tryParse(amountController.text) ?? 0;
                       if (name.isNotEmpty && amount > 0) {
                         Navigator.pop(context);
-                        await DatabaseHelper.instance.insertDebt({
+                        final id = await DatabaseHelper.instance.insertDebt({
                           'tipe': tipe,
                           'kontak': name,
                           'keterangan': descController.text.trim(),
@@ -194,6 +195,7 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
                           'jatuh_tempo': jatuhTempo.toIso8601String(),
                           'status': 'belum_lunas',
                         });
+                        await NotificationService.instance.scheduleDebtReminder(id, name, tipe, jatuhTempo);
                         _loadData();
                       }
                     },
@@ -244,6 +246,7 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
             onTap: () async {
               Navigator.pop(context);
               await DatabaseHelper.instance.updateDebtPayback(id, jumlah, 'lunas');
+              await NotificationService.instance.cancelDebtReminder(id);
               _loadData();
             },
           ),
@@ -253,6 +256,7 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
             onTap: () async {
               Navigator.pop(context);
               await DatabaseHelper.instance.deleteDebt(id);
+              await NotificationService.instance.cancelDebtReminder(id);
               _loadData();
             },
           ),
@@ -309,6 +313,9 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
                   status = 'lunas';
                 }
                 await DatabaseHelper.instance.updateDebtPayback(id, newPaid, status);
+                if (status == 'lunas') {
+                  await NotificationService.instance.cancelDebtReminder(id);
+                }
                 _loadData();
               }
             },

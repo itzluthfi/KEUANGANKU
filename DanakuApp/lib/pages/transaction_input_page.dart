@@ -422,6 +422,7 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
         'POST',
         Uri.parse('${SyncService.instance.laravelBaseUrl}/ai/parse-receipt'),
       );
+      request.headers['X-Danaku-API-Key'] = 'secure_danaku_key_2026';
       
       request.files.add(
         await http.MultipartFile.fromPath('image', pickedFile.path),
@@ -539,7 +540,10 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
     try {
       final response = await http.post(
         Uri.parse('${SyncService.instance.laravelBaseUrl}/ai/parse-text'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Danaku-API-Key': 'secure_danaku_key_2026',
+        },
         body: jsonEncode({'text': text}),
       );
 
@@ -1257,7 +1261,6 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
                                             ],
                                           ),
                                     const SizedBox(width: 10),
-                                    
                                     // Currency Selector & Nominal (tap untuk buka kalkulator)
                                     GestureDetector(
                                       onTap: () {
@@ -1286,6 +1289,20 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
                                               ),
                                             ],
                                           ),
+                                          if (nominal.contains(RegExp(r'[\+\-x/]'))) ...[
+                                            Builder(
+                                              builder: (context) {
+                                                final result = evaluateExpression(nominal);
+                                                if (result != null) {
+                                                  return Text(
+                                                    "= Rp${NumberFormat.decimalPattern('id').format(result.toInt())}",
+                                                    style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600),
+                                                  );
+                                                }
+                                                return const SizedBox.shrink();
+                                              },
+                                            ),
+                                          ],
                                           if (selectedCurrency == "USD")
                                             Text(
                                               "≈ Rp${NumberFormat.decimalPattern('id').format(converted.toInt())}",
@@ -1573,6 +1590,7 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
         'POST',
         Uri.parse('${SyncService.instance.laravelBaseUrl}/receipts'),
       );
+      request.headers['X-Danaku-API-Key'] = 'secure_danaku_key_2026';
       request.files.add(await http.MultipartFile.fromPath('image', path));
       final streamedResponse = await request.send().timeout(const Duration(seconds: 30));
       final response = await http.Response.fromStream(streamedResponse);

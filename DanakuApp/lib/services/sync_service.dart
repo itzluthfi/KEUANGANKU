@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart'
     as http; // Ditambahkan sebagai dependensi jika ingin menghubungkan ke Laravel asli
@@ -23,6 +24,9 @@ class SyncService {
   void _startConnectionCheck() {
     checkConnection().then((status) {
       connectionStatus.value = status;
+      if (status) {
+        syncOfflineReceipts();
+      }
     });
 
     _connectionCheckTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
@@ -31,10 +35,70 @@ class SyncService {
         connectionStatus.value = status;
         if (status) {
           // Ketika kembali online, otomatis trigger auto-backup untuk mengunggah perubahan lokal
+          syncOfflineReceipts();
           triggerAutoBackup();
         }
       }
     });
+  }
+
+  Future<void> syncOfflineReceipts() async {
+    if (!useRealServer) return;
+    try {
+      final db = await DatabaseHelper.instance.database;
+      final List<Map<String, dynamic>> offlineReceipts = await db.query(
+        'transaksi',
+        where: 'receipt_path IS NOT NULL AND receipt_url IS NULL',
+      );
+
+      if (offlineReceipts.isEmpty) return;
+
+      debugPrint("Menemukan ${offlineReceipts.length} struk offline untuk diunggah...");
+
+      for (var r in offlineReceipts) {
+        final path = r['receipt_path'] as String;
+        final id = r['id'] as int;
+
+        final file = File(path);
+        if (!await file.exists()) {
+          debugPrint("File struk tidak ditemukan di path lokal: $path");
+          continue;
+        }
+
+        debugPrint("Mengunggah struk offline: $path");
+        final request = http.MultipartRequest(
+          'POST',
+          Uri.parse('$laravelBaseUrl/receipts'),
+        );
+        request.headers['X-Danaku-API-Key'] = 'secure_danaku_key_2026';
+        request.files.add(await http.MultipartFile.fromPath('image', path));
+
+        final streamed = await request.send().timeout(const Duration(seconds: 30));
+        final response = await http.Response.fromStream(streamed);
+
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          final data = jsonDecode(response.body);
+          final url = data['url'] as String?;
+          if (url != null) {
+            await db.update(
+              'transaksi',
+              {'receipt_url': url},
+              where: 'id = ?',
+              whereArgs: [id],
+            );
+            debugPrint("Struk berhasil diunggah dan disimpan ke database: $url");
+          }
+        } else {
+          debugPrint("Gagal mengunggah struk offline (ID: $id): status ${response.statusCode}");
+        }
+      }
+
+      // Update memory state
+      final freshTransaksi = await DatabaseHelper.instance.fetchTransaksi();
+      AppData.transaksi = freshTransaksi;
+    } catch (e) {
+      debugPrint("Error syncOfflineReceipts: $e");
+    }
   }
 
   Future<bool> checkConnection() async {
@@ -153,6 +217,8 @@ class SyncService {
         final token = await DatabaseHelper.instance.getSetting('auth_token');
         final payload = await _buildBackupPayload();
 
+        debugPrint("Real Server Backup: URL=$laravelBaseUrl/backup, Token=$token");
+
         final response = await http.post(
           Uri.parse('$laravelBaseUrl/backup'),
           headers: {
@@ -162,8 +228,10 @@ class SyncService {
           body: jsonEncode(payload),
         );
 
-        if (response.statusCode != 200) {
-          throw Exception("Gagal mengunggah data ke Laravel Server");
+        debugPrint("Real Server Backup Response: Status=${response.statusCode}, Body=${response.body}");
+
+        if (response.statusCode != 200 && response.statusCode != 201) {
+          throw Exception("Server Error (${response.statusCode}): ${response.body}");
         }
       } catch (e) {
         debugPrint("Error Real Server Backup: $e");
@@ -254,18 +322,24 @@ class SyncService {
     return null;
   }
 
-  /// Memulihkan (Restore) data cadangan terakhir dari Awan dan menimpa database lokal
+  /// Memulihkan data transaksi, dompet, dan kategori dari Awan berdasarkan email user
   Future<bool> restoreData(String email) async {
     String? jsonString;
-
     if (useRealServer) {
       // 🌐 LINK KE LARAVEL ASLI:
       try {
         final token = await DatabaseHelper.instance.getSetting('auth_token');
+        debugPrint("Real Server Restore: URL=$laravelBaseUrl/restore, Token=$token");
+
         final response = await http.get(
           Uri.parse('$laravelBaseUrl/restore'),
-          headers: {'Authorization': 'Bearer $token'},
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
         );
+
+        debugPrint("Real Server Restore Response: Status=${response.statusCode}, Body=${response.body}");
 
         if (response.statusCode == 200) {
           final responseData = jsonDecode(response.body);
@@ -273,11 +347,12 @@ class SyncService {
             responseData['data'],
           ); // Sesuaikan dengan struktur response Laravel Anda
         } else {
+          debugPrint("Real Server Restore failed with status: ${response.statusCode}");
           return false;
         }
       } catch (e) {
         debugPrint("Error Real Server Restore: $e");
-        return false;
+        rethrow;
       }
     } else {
       // 💾 SIMULASI AWAN LOKAL:
@@ -298,11 +373,30 @@ class SyncService {
       final transaksiList = backupPayload['transaksi'] as List;
       final walletsList = backupPayload['wallets'] as List;
       final categoriesList = backupPayload['categories'] as List;
+      final deletedRecordsList = (backupPayload['deleted_records'] as List?) ?? [];
 
       final db = await DatabaseHelper.instance.database;
 
       // Gunakan Transaction SQLite agar aman, cepat, dan mencegah duplikasi
       await db.transaction((txn) async {
+        // 0. Sinkronisasi Deletions dari Awan
+        for (var dr in deletedRecordsList) {
+          final drMap = Map<String, dynamic>.from(dr);
+          final uuid = drMap['uuid'] as String?;
+          if (uuid != null && uuid.isNotEmpty) {
+            // Hapus transaksi lokal yang memiliki UUID ini
+            await txn.delete('transaksi', where: 'uuid = ?', whereArgs: [uuid]);
+            // Catat UUID penghapusan ini di deleted_records lokal jika belum terdaftar
+            final existingDel = await txn.query('deleted_records', where: 'uuid = ?', whereArgs: [uuid]);
+            if (existingDel.isEmpty) {
+              await txn.insert('deleted_records', {
+                'uuid': uuid,
+                'deleted_at': drMap['deleted_at'] ?? DateTime.now().toIso8601String(),
+              });
+            }
+          }
+        }
+
         // 1. Sinkronisasi & Merge Dompet
         for (var w in walletsList) {
           final wMap = Map<String, dynamic>.from(w);
@@ -352,22 +446,24 @@ class SyncService {
           }
         }
 
-        // 3. Sinkronisasi & Merge Transaksi (Deduplikasi cerdas berdasarkan data detail)
+        // 3. Sinkronisasi & Merge Transaksi (Deduplikasi cerdas berdasarkan UUID)
         for (var t in transaksiList) {
           final tMap = Map<String, dynamic>.from(t);
+          final uuid = tMap['uuid'] as String?;
+          if (uuid == null || uuid.isEmpty) continue;
+
+          // Lewati jika transaksi sudah terhapus locally
+          final localDeleted = await txn.query('deleted_records', where: 'uuid = ?', whereArgs: [uuid]);
+          if (localDeleted.isNotEmpty) {
+            continue;
+          }
+
           final existing = await txn.query(
             'transaksi',
-            where: 'keterangan = ? AND jumlah = ? AND jenis = ? AND tanggal = ? AND walletNama = ? AND kategori = ? AND book_id = ?',
-            whereArgs: [
-              tMap['keterangan'],
-              tMap['jumlah'],
-              tMap['jenis'],
-              tMap['tanggal'],
-              tMap['walletNama'],
-              tMap['kategori'],
-              tMap['book_id'],
-            ],
+            where: 'uuid = ?',
+            whereArgs: [uuid],
           );
+
           if (existing.isEmpty) {
             await txn.insert('transaksi', {
               'book_id': tMap['book_id'],
@@ -378,7 +474,28 @@ class SyncService {
               'walletNama': tMap['walletNama'],
               'kategori': tMap['kategori'],
               'items_json': tMap['items_json'],
+              'receipt_path': tMap['receipt_path'],
+              'receipt_url': tMap['receipt_url'],
+              'uuid': uuid,
             });
+          } else {
+            await txn.update(
+              'transaksi',
+              {
+                'book_id': tMap['book_id'],
+                'keterangan': tMap['keterangan'],
+                'jumlah': tMap['jumlah'],
+                'jenis': tMap['jenis'],
+                'tanggal': tMap['tanggal'],
+                'walletNama': tMap['walletNama'],
+                'kategori': tMap['kategori'],
+                'items_json': tMap['items_json'],
+                'receipt_path': tMap['receipt_path'],
+                'receipt_url': tMap['receipt_url'],
+              },
+              where: 'uuid = ?',
+              whereArgs: [uuid],
+            );
           }
         }
       });
@@ -404,11 +521,13 @@ class SyncService {
     final transaksiRaw = await db.query('transaksi');
     final walletsRaw = await db.query('wallets');
     final categoriesRaw = await db.query('categories');
+    final deletedRecordsRaw = await db.query('deleted_records');
 
     return {
       'transaksi': transaksiRaw,
       'wallets': walletsRaw,
       'categories': categoriesRaw,
+      'deleted_records': deletedRecordsRaw,
       'backup_date': DateTime.now().toIso8601String(),
     };
   }

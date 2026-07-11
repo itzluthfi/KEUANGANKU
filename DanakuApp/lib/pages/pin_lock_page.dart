@@ -1,8 +1,16 @@
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import '../data/database_helper.dart';
 import '../services/biometric_service.dart';
 import 'main_page.dart';
 import 'transaction_input_page.dart';
+
+String hashPin(String pin) {
+  final bytes = utf8.encode(pin);
+  final digest = sha256.convert(bytes);
+  return digest.toString();
+}
 
 class PinLockPage extends StatefulWidget {
   final bool isConfirming; 
@@ -81,7 +89,8 @@ class _PinLockPageState extends State<PinLockPage> {
     // Mode Set Up PIN Baru (Konfirmasi)
     if (widget.isConfirming) {
       if (_enteredCode == widget.setupPin) {
-        await DatabaseHelper.instance.saveSetting('secure_pin', _enteredCode);
+        final hashed = hashPin(_enteredCode);
+        await DatabaseHelper.instance.saveSetting('secure_pin', hashed);
         await DatabaseHelper.instance.saveSetting('pin_enabled', 'true');
         if (mounted) Navigator.pop(context, true);
       } else {
@@ -95,7 +104,20 @@ class _PinLockPageState extends State<PinLockPage> {
 
     // Mode Pembukaan Kunci / Set Up awal
     if (_savedPin != null) {
-      if (_enteredCode == _savedPin) {
+      bool isMatch = false;
+      if (_savedPin!.length == 64) {
+        // Hashed comparison
+        isMatch = hashPin(_enteredCode) == _savedPin;
+      } else {
+        // Plaintext migration
+        isMatch = _enteredCode == _savedPin;
+        if (isMatch) {
+          final hashed = hashPin(_enteredCode);
+          await DatabaseHelper.instance.saveSetting('secure_pin', hashed);
+        }
+      }
+
+      if (isMatch) {
         if (mounted) _onSuccessUnlock();
       } else {
         setState(() {

@@ -17,6 +17,7 @@ void main() async {
   if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
     tz.initializeTimeZones();
     await NotificationService.instance.init();
+    await NotificationService.instance.rescheduleDailyReminderIfNeeded();
     try {
       await Firebase.initializeApp();
       NotificationService.instance.setupFcmListeners();

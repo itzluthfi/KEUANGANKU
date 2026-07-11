@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:firebase_messaging/firebase_messaging.dart';
+import '../data/database_helper.dart';
 
 class NotificationService {
   static final NotificationService instance = NotificationService._init();
@@ -275,6 +276,76 @@ class NotificationService {
       );
     } catch (e) {
       debugPrint("Error showing custom local notification: $e");
+    }
+  }
+
+  Future<void> rescheduleDailyReminderIfNeeded() async {
+    if (kIsWeb) return;
+    if (!(Platform.isAndroid || Platform.isIOS)) return;
+
+    try {
+      final reminderEnabled = await DatabaseHelper.instance.getSetting('reminder_enabled');
+      if (reminderEnabled != 'false') { // Default to true if not set
+        final reminderTime = await DatabaseHelper.instance.getSetting('reminder_time') ?? "20:00";
+        final timeParts = reminderTime.split(":");
+        final hour = int.tryParse(timeParts[0]) ?? 20;
+        final minute = int.tryParse(timeParts[1]) ?? 0;
+        await scheduleDailyNotification(hour, minute);
+      }
+    } catch (e) {
+      debugPrint("Error rescheduleDailyReminderIfNeeded: $e");
+    }
+  }
+
+  Future<void> scheduleDebtReminder(int debtId, String kontak, String tipe, DateTime jatuhTempo) async {
+    if (kIsWeb) return;
+    if (!(Platform.isAndroid || Platform.isIOS)) return;
+
+    try {
+      final id = 10000 + debtId; // Offset to avoid ID collision
+      final scheduledDate = tz.TZDateTime.from(
+        jatuhTempo.subtract(const Duration(days: 1)), // Notify 1 day before due date
+        tz.local,
+      );
+
+      // If scheduled date is in the past, return (don't schedule)
+      if (scheduledDate.isBefore(DateTime.now())) return;
+
+      final typeLabel = tipe.toLowerCase() == 'utang' ? 'utang Anda kepada' : 'piutang Anda dari';
+      await _localNotifications.zonedSchedule(
+        id,
+        '🚨 Pengingat Jatuh Tempo!',
+        'Besok adalah tanggal jatuh tempo $typeLabel $kontak.',
+        scheduledDate,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'debt_reminders',
+            'Pengingat Utang Piutang',
+            importance: Importance.max,
+            priority: Priority.high,
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
+        ),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      );
+      debugPrint("Scheduled debt reminder for ID $debtId on $scheduledDate");
+    } catch (e) {
+      debugPrint("Error scheduling debt reminder: $e");
+    }
+  }
+
+  Future<void> cancelDebtReminder(int debtId) async {
+    if (kIsWeb) return;
+    try {
+      await _localNotifications.cancel(10000 + debtId);
+      debugPrint("Cancelled debt reminder for ID $debtId");
+    } catch (e) {
+      debugPrint("Error cancelling debt reminder: $e");
     }
   }
 }

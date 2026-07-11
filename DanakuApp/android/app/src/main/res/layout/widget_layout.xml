@@ -29,10 +29,30 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Pengeluaran: Rp0"
-            android:textColor="#424242"
-            android:textSize="12sp"
+            android:textColor="#E53935"
+            android:textSize="11sp"
             android:textStyle="bold"
             android:layout_marginTop="4dp" />
+
+        <TextView
+            android:id="@+id/widget_income"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Pemasukan: Rp0"
+            android:textColor="#43A047"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:layout_marginTop="2dp" />
+
+        <TextView
+            android:id="@+id/widget_balance"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Saldo: Rp0"
+            android:textColor="#1E88E5"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:layout_marginTop="2dp" />
     </LinearLayout>
 
     <ImageView

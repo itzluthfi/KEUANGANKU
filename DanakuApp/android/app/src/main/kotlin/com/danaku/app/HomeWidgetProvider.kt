@@ -18,7 +18,12 @@ class HomeWidgetProvider : HomeWidgetProvider() {
         for (appWidgetId in appWidgetIds) {
             val views = RemoteViews(context.packageName, R.layout.widget_layout).apply {
                 val expense = widgetData.getString("expense_value", "Rp 0")
+                val income = widgetData.getString("income_value", "Rp 0")
+                val balance = widgetData.getString("balance_value", "Rp 0")
+
                 setTextViewText(R.id.widget_expense, "Pengeluaran: $expense")
+                setTextViewText(R.id.widget_income, "Pemasukan: $income")
+                setTextViewText(R.id.widget_balance, "Saldo: $balance")
 
                 val pendingIntent = HomeWidgetLaunchIntent.getActivity(
                     context,

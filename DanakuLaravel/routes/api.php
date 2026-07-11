@@ -16,12 +16,16 @@ Route::get('/', function () {
     ]);
 });
 
+use App\Http\Middleware\CheckApiKey;
+
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
-Route::post('/ai/parse-text', [AIController::class, 'parseText']);
-Route::post('/ai/parse-receipt', [AIController::class, 'parseReceipt']);
-Route::post('/receipts', [ReceiptController::class, 'store']);
+Route::middleware([CheckApiKey::class, 'throttle:20,1'])->group(function () {
+    Route::post('/ai/parse-text', [AIController::class, 'parseText']);
+    Route::post('/ai/parse-receipt', [AIController::class, 'parseReceipt']);
+    Route::post('/receipts', [ReceiptController::class, 'store']);
+});
 
 // Rute Privat (Wajib menyertakan Bearer Token Sanctum di Header HTTP)
 Route::middleware('auth:sanctum')->group(function () {

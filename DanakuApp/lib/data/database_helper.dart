@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'app_data.dart';
@@ -9,11 +10,17 @@ import 'package:home_widget/home_widget.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
   static Database? _database;
 
   DatabaseHelper._init();
+
+  final _secureStorage = const FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
 
   Future<Database> get database async {
     if (_database != null) return _database!;
@@ -24,7 +31,7 @@ class DatabaseHelper {
   Future<Database> _initDB(String filePath) async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
-    return await openDatabase(path, version: 6, onCreate: _createDB, onUpgrade: _upgradeDB);
+    return await openDatabase(path, version: 7, onCreate: _createDB, onUpgrade: _upgradeDB);
   }
 
   Future _createDB(Database db, int version) async {
@@ -47,7 +54,8 @@ class DatabaseHelper {
       kategori TEXT,
       items_json TEXT,
       receipt_path TEXT,
-      receipt_url TEXT
+      receipt_url TEXT,
+      uuid TEXT
     )
     ''');
 
@@ -245,6 +253,20 @@ class DatabaseHelper {
       )
       ''');
     }
+    if (oldVersion < 7) {
+      try {
+        await db.execute('ALTER TABLE transaksi ADD COLUMN uuid TEXT');
+      } catch (e) {
+        // Column might already exist
+      }
+      await db.execute('''
+      CREATE TABLE IF NOT EXISTS deleted_records (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        uuid TEXT,
+        deleted_at TEXT
+      )
+      ''');
+    }
   }
 
   // --- FUNGSI BOOKS ---
@@ -306,6 +328,15 @@ class DatabaseHelper {
 
   // --- FUNGSI PENGATURAN GENERIK (UNTUK AUTH & BACKUP SIMULASI) ---
   Future<void> saveSetting(String key, String value) async {
+    if (key == 'secure_pin' || key == 'auth_token') {
+      try {
+        await _secureStorage.write(key: key, value: value);
+        return;
+      } catch (e) {
+        debugPrint("Secure storage write error: $e");
+      }
+    }
+
     final db = await database;
     await db.insert(
       'settings',
@@ -315,6 +346,15 @@ class DatabaseHelper {
   }
 
   Future<String?> getSetting(String key) async {
+    if (key == 'secure_pin' || key == 'auth_token') {
+      try {
+        final val = await _secureStorage.read(key: key);
+        if (val != null) return val;
+      } catch (e) {
+        debugPrint("Secure storage read error: $e");
+      }
+    }
+
     final db = await database;
     final maps = await db.query(
       'settings',
@@ -329,6 +369,14 @@ class DatabaseHelper {
   }
 
   Future<void> deleteSetting(String key) async {
+    if (key == 'secure_pin' || key == 'auth_token') {
+      try {
+        await _secureStorage.delete(key: key);
+      } catch (e) {
+        debugPrint("Secure storage delete error: $e");
+      }
+    }
+
     final db = await database;
     await db.delete(
       'settings',
@@ -343,6 +391,9 @@ class DatabaseHelper {
     await db.transaction((txn) async {
       Map<String, dynamic> tMap = t.toMap();
       tMap['book_id'] = AppData.activeBookId;
+      if (tMap['uuid'] == null || tMap['uuid'].toString().isEmpty) {
+        tMap['uuid'] = generateUuid();
+      }
       await txn.insert('transaksi', tMap);
 
       final List<Map<String, dynamic>> walletMaps = await txn.query(
@@ -494,6 +545,23 @@ class DatabaseHelper {
           where: 'nama = ? AND book_id = ?', 
           whereArgs: [t.walletNama, AppData.activeBookId]
         );
+      }
+
+      final List<Map<String, dynamic>> trMaps = await txn.query(
+        'transaksi',
+        columns: ['uuid'],
+        where: 'id = ?',
+        whereArgs: [t.id],
+      );
+      String? txUuid = t.uuid;
+      if (trMaps.isNotEmpty) {
+        txUuid = trMaps.first['uuid'] as String?;
+      }
+      if (txUuid != null && txUuid.isNotEmpty) {
+        await txn.insert('deleted_records', {
+          'uuid': txUuid,
+          'deleted_at': DateTime.now().toIso8601String(),
+        });
       }
 
       await txn.delete('transaksi', where: 'id = ?', whereArgs: [t.id]);
@@ -675,12 +743,13 @@ class DatabaseHelper {
     return await db.query('debts', where: 'book_id = ?', whereArgs: [AppData.activeBookId]);
   }
 
-  Future<void> insertDebt(Map<String, dynamic> debt) async {
+  Future<int> insertDebt(Map<String, dynamic> debt) async {
     final db = await database;
     final map = Map<String, dynamic>.from(debt);
     map['book_id'] = AppData.activeBookId;
-    await db.insert('debts', map);
+    final id = await db.insert('debts', map);
     SyncService.instance.triggerAutoBackup();
+    return id;
   }
 
   Future<void> updateDebtPayback(int id, int terbayar, String status) async {
@@ -756,15 +825,42 @@ class DatabaseHelper {
           .where((tr) => tr.tanggal.month == now.month && tr.tanggal.year == now.year && (tr.jenis.toLowerCase() == 'keluar' || tr.jenis.toLowerCase() == 'pengeluaran'))
           .fold(0, (sum, tr) => sum + tr.jumlah);
 
+      final currentMonthIncome = all
+          .where((tr) => tr.tanggal.month == now.month && tr.tanggal.year == now.year && (tr.jenis.toLowerCase() == 'masuk' || tr.jenis.toLowerCase() == 'pemasukan'))
+          .fold(0, (sum, tr) => sum + tr.jumlah);
+
+      final balance = currentMonthIncome - currentMonthExpense;
+
       final formattedExpense = "Rp ${NumberFormat.decimalPattern('id').format(currentMonthExpense)}";
+      final formattedIncome = "Rp ${NumberFormat.decimalPattern('id').format(currentMonthIncome)}";
+      final formattedBalance = "Rp ${NumberFormat.decimalPattern('id').format(balance)}";
+
       await HomeWidget.saveWidgetData<String>("expense_value", formattedExpense);
+      await HomeWidget.saveWidgetData<String>("income_value", formattedIncome);
+      await HomeWidget.saveWidgetData<String>("balance_value", formattedBalance);
+
       await HomeWidget.updateWidget(
         name: 'HomeWidgetProvider',
         androidName: 'HomeWidgetProvider',
       );
-      debugPrint("Home widget updated: $formattedExpense");
+      debugPrint("Home widget updated: Exp $formattedExpense, Inc $formattedIncome, Bal $formattedBalance");
     } catch (e) {
       debugPrint("Error updating home widget data: $e");
     }
+  }
+
+  String generateUuid() {
+    final random = Random();
+    final values = List<int>.generate(16, (i) => random.nextInt(256));
+    values[6] = (values[6] & 0x0f) | 0x40;
+    values[8] = (values[8] & 0x3f) | 0x80;
+    final buffer = StringBuffer();
+    for (var i = 0; i < 16; i++) {
+      if (i == 4 || i == 6 || i == 8 || i == 10) {
+        buffer.write('-');
+      }
+      buffer.write(values[i].toRadixString(16).padLeft(2, '0'));
+    }
+    return buffer.toString();
   }
 }
