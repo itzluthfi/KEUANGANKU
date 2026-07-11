@@ -763,13 +763,12 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
     double baseAmount = parsedAmount ?? 0;
     int currentJumlah = selectedCurrency == "USD" ? (baseAmount * usdToIdr).toInt() : baseAmount.toInt();
 
-    if (currentJumlah <= 0) {
-      CustomSnackBar.show(context, message: "Nominal harus lebih dari 0", isError: true);
-      return;
-    }
-
     if (widget.initialTransaksi != null) {
       // MODE EDIT
+      if (currentJumlah <= 0) {
+        CustomSnackBar.show(context, message: "Nominal harus lebih dari 0", isError: true);
+        return;
+      }
       if (jenis != 'transfer' && selectedCategory == null) {
         CustomSnackBar.show(context, message: "Pilih kategori terlebih dahulu", isError: true);
         return;
@@ -813,52 +812,54 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
     }
 
     // MODE INPUT BARU
-    if (jenis == 'transfer') {
-      if (selectedWalletTujuan == null || selectedWallet == null) {
-        CustomSnackBar.show(context, message: "Pilih dompet asal dan tujuan", isError: true);
-        return;
+    if (currentJumlah > 0) {
+      if (jenis == 'transfer') {
+        if (selectedWalletTujuan == null || selectedWallet == null) {
+          CustomSnackBar.show(context, message: "Pilih dompet asal dan tujuan", isError: true);
+          return;
+        }
+        if (selectedWallet!.nama == selectedWalletTujuan!.nama) {
+          CustomSnackBar.show(context, message: "Dompet asal dan tujuan tidak boleh sama", isError: true);
+          return;
+        }
+        
+        _queuedTransactions.add(Transaksi(
+          keterangan: keteranganController.text.isEmpty ? "Transfer ke ${selectedWalletTujuan!.nama}" : keteranganController.text,
+          jumlah: currentJumlah,
+          jenis: "keluar",
+          tanggal: selectedDate,
+          walletNama: selectedWallet!.nama,
+          kategori: "Transfer",
+        ));
+        _queuedTransactions.add(Transaksi(
+          keterangan: keteranganController.text.isEmpty ? "Transfer dari ${selectedWallet!.nama}" : keteranganController.text,
+          jumlah: currentJumlah,
+          jenis: "masuk",
+          tanggal: selectedDate,
+          walletNama: selectedWalletTujuan!.nama,
+          kategori: "Transfer",
+        ));
+      } else {
+        if (selectedCategory == null || selectedWallet == null) {
+          CustomSnackBar.show(context, message: "Lengkapi kategori dan dompet", isError: true);
+          return;
+        }
+        _queuedTransactions.add(Transaksi(
+          keterangan: keteranganController.text.isEmpty ? selectedCategory!.nama : keteranganController.text,
+          jumlah: currentJumlah,
+          jenis: jenis,
+          tanggal: selectedDate,
+          walletNama: selectedWallet!.nama,
+          kategori: selectedCategory!.nama,
+          itemsJson: _activeItems != null ? jsonEncode(_activeItems) : null,
+          receiptPath: _receiptImagePath,
+        ));
       }
-      if (selectedWallet!.nama == selectedWalletTujuan!.nama) {
-        CustomSnackBar.show(context, message: "Dompet asal dan tujuan tidak boleh sama", isError: true);
-        return;
-      }
-      
-      _queuedTransactions.add(Transaksi(
-        keterangan: keteranganController.text.isEmpty ? "Transfer ke ${selectedWalletTujuan!.nama}" : keteranganController.text,
-        jumlah: currentJumlah,
-        jenis: "keluar",
-        tanggal: selectedDate,
-        walletNama: selectedWallet!.nama,
-        kategori: "Transfer",
-      ));
-      _queuedTransactions.add(Transaksi(
-        keterangan: keteranganController.text.isEmpty ? "Transfer dari ${selectedWallet!.nama}" : keteranganController.text,
-        jumlah: currentJumlah,
-        jenis: "masuk",
-        tanggal: selectedDate,
-        walletNama: selectedWalletTujuan!.nama,
-        kategori: "Transfer",
-      ));
     } else {
-      if (selectedCategory == null || selectedWallet == null) {
-        CustomSnackBar.show(context, message: "Lengkapi kategori dan dompet", isError: true);
+      if (_queuedTransactions.isEmpty) {
+        CustomSnackBar.show(context, message: "Nominal harus lebih dari 0", isError: true);
         return;
       }
-      _queuedTransactions.add(Transaksi(
-        keterangan: keteranganController.text.isEmpty ? selectedCategory!.nama : keteranganController.text,
-        jumlah: currentJumlah,
-        jenis: jenis,
-        tanggal: selectedDate,
-        walletNama: selectedWallet!.nama,
-        kategori: selectedCategory!.nama,
-        itemsJson: _activeItems != null ? jsonEncode(_activeItems) : null,
-        receiptPath: _receiptImagePath,
-      ));
-    }
-
-    if (_queuedTransactions.isEmpty) {
-      CustomSnackBar.show(context, message: "Antrean kosong, isi nominal terlebih dahulu", isError: true);
-      return;
     }
 
     // Checking budget warnings for expenses in queue
