@@ -31,7 +31,21 @@ class DatabaseHelper {
   Future<Database> _initDB(String filePath) async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
-    return await openDatabase(path, version: 8, onCreate: _createDB, onUpgrade: _upgradeDB);
+    return await openDatabase(
+      path, 
+      version: 8, 
+      onCreate: _createDB, 
+      onUpgrade: _upgradeDB,
+      onOpen: (db) async {
+        await db.execute('''
+        CREATE TABLE IF NOT EXISTS deleted_records (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid TEXT,
+          deleted_at TEXT
+        )
+        ''');
+      },
+    );
   }
 
   Future _createDB(Database db, int version) async {
@@ -136,6 +150,14 @@ class DatabaseHelper {
       terkumpul INTEGER DEFAULT 0,
       jatuh_tempo TEXT,
       status TEXT
+    )
+    ''');
+
+    await db.execute('''
+    CREATE TABLE IF NOT EXISTS deleted_records (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      uuid TEXT,
+      deleted_at TEXT
     )
     ''');
 
