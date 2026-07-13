@@ -11,9 +11,9 @@ class BackupController extends Controller
     public function backup(Request $request)
     {
         $request->validate([
-            'transaksi' => 'required|array',
-            'wallets' => 'required|array',
-            'categories' => 'required|array',
+            'transaksi' => 'present|array',
+            'wallets' => 'present|array',
+            'categories' => 'present|array',
         ]);
 
         $user = $request->user();
