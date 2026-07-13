@@ -304,14 +304,27 @@ class SyncService {
         final token = await DatabaseHelper.instance.getSetting('auth_token');
         final response = await http.get(
           Uri.parse('$laravelBaseUrl/restore'),
-          headers: {'Authorization': 'Bearer $token'},
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
         );
         if (response.statusCode == 200) {
           final responseData = jsonDecode(response.body);
           return responseData['data'] as Map<String, dynamic>;
+        } else if (response.statusCode == 404) {
+          throw Exception("Tidak ditemukan data cadangan di server untuk akun Anda.");
+        } else {
+          try {
+            final body = jsonDecode(response.body);
+            throw Exception(body['message'] ?? "Gagal mengambil data dari server (Status: ${response.statusCode})");
+          } catch (_) {
+            throw Exception("Gagal menghubungi server cadangan (Status: ${response.statusCode})");
+          }
         }
       } catch (e) {
         debugPrint("Error fetching backup preview: $e");
+        rethrow;
       }
     } else {
       jsonString = await DatabaseHelper.instance.getSetting('user_backup_$email');

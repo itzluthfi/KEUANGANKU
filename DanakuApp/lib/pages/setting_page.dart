@@ -352,15 +352,22 @@ class _SettingPageState extends State<SettingPage> {
     );
 
     Map<String, dynamic>? backupPreview;
+    String? apiErrorMessage;
     try {
       backupPreview = await SyncService.instance.fetchBackupPreview(_loggedInEmail!);
-    } catch (_) {}
+    } catch (e) {
+      apiErrorMessage = e.toString().replaceAll("Exception: ", "");
+    }
 
     if (mounted) Navigator.pop(context);
 
     if (backupPreview == null) {
       if (mounted) {
-        CustomSnackBar.show(context, message: "Gagal mengambil data cadangan. Pastikan koneksi internet terhubung.", isError: true);
+        CustomSnackBar.show(
+          context, 
+          message: apiErrorMessage ?? "Gagal mengambil data cadangan. Pastikan koneksi internet terhubung.", 
+          isError: true
+        );
       }
       return;
     }
