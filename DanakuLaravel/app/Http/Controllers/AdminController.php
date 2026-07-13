@@ -224,11 +224,22 @@ class AdminController extends Controller
         ));
     }
 
-    public function users()
+    public function users(Request $request)
     {
-        $users = User::where('role', '!=', 'admin')
-            ->with('backup')
-            ->paginate(10);
+        $search = $request->query('search');
+
+        $query = User::where('role', '!=', 'admin');
+
+        if (!empty($search)) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        $users = $query->with('backup')
+            ->paginate(10)
+            ->withQueryString(); // Keep search query parameter in pagination links
 
         $usersList = [];
         foreach ($users as $u) {
@@ -252,7 +263,7 @@ class AdminController extends Controller
             ];
         }
 
-        return view('admin.users', compact('users', 'usersList'));
+        return view('admin.users', compact('users', 'usersList', 'search'));
     }
 
     public function userTransactions($id)

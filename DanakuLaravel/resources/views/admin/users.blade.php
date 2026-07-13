@@ -74,9 +74,27 @@
 </style>
 
 <div class="card-panel">
-    <div class="card-panel-title"><i class="fa-solid fa-users" style="color:#FF528F;"></i> Daftar Pengguna Danaku App</div>
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 25px; border-bottom: 1px solid #F5F5F5; padding-bottom: 15px;">
+        <div class="card-panel-title" style="margin-bottom: 0;"><i class="fa-solid fa-users" style="color:#FF528F;"></i> Daftar Pengguna Danaku App</div>
+        <form action="{{ route('admin.users') }}" method="GET" style="display: flex; gap: 10px; align-items: center;">
+            <div style="position: relative; display: flex; align-items: center;">
+                <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; color: #AAA; font-size: 13px;"></i>
+                <input type="text" name="search" value="{{ $search ?? '' }}" placeholder="Cari nama atau email..." style="padding: 10px 12px 10px 35px; border-radius: 12px; border: 1px solid #DDD; font-size: 13px; width: 220px; outline: none; transition: border-color 0.3s;" onfocus="this.style.borderColor='#FF528F'" onblur="this.style.borderColor='#DDD'">
+            </div>
+            <button type="submit" style="background: #FF528F; color: white; border: none; padding: 10px 16px; border-radius: 12px; font-weight: bold; font-size: 13px; cursor: pointer; transition: all 0.3s;" onmouseover="this.style.background='#FF7A9F'" onmouseout="this.style.background='#FF528F'">Cari</button>
+            @if(!empty($search))
+                <a href="{{ route('admin.users') }}" style="background: #F0F0F0; color: #555; text-decoration: none; padding: 10px 16px; border-radius: 12px; font-weight: bold; font-size: 13px; display: inline-flex; align-items: center; border: 1px solid #DDD;">Reset</a>
+            @endif
+        </form>
+    </div>
     @if(empty($usersList))
-        <div style="text-align:center; padding: 40px; color:#999; font-size:14px;">Belum ada pengguna terdaftar di server.</div>
+        <div style="text-align:center; padding: 40px; color:#999; font-size:14px;">
+            @if(!empty($search))
+                Tidak ada pengguna yang cocok dengan pencarian "{{ $search }}".
+            @else
+                Belum ada pengguna terdaftar di server.
+            @endif
+        </div>
     @else
         <table>
             <thead>
