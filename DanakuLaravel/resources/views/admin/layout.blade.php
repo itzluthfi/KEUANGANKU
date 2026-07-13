@@ -195,6 +195,9 @@
 
         /* Responsive Breakpoints */
         @media (max-width: 991.98px) {
+            body {
+                flex-direction: column;
+            }
             .sidebar {
                 left: -280px;
                 z-index: 1000;
