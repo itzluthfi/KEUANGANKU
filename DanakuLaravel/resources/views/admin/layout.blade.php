@@ -158,10 +158,97 @@
             font-family: 'Outfit', sans-serif !important;
             border-radius: 24px !important;
         }
+
+        /* Mobile Toggle & Header */
+        .mobile-header {
+            display: none;
+            background: white;
+            padding: 15px 20px;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 999;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            border-bottom: 1px solid #EEE;
+        }
+        .btn-toggle-sidebar {
+            background: none;
+            border: none;
+            color: #FF528F;
+            font-size: 22px;
+            cursor: pointer;
+            padding: 5px;
+            outline: none;
+        }
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.4);
+            z-index: 998;
+            backdrop-filter: blur(2px);
+        }
+
+        /* Responsive Breakpoints */
+        @media (max-width: 991.98px) {
+            .sidebar {
+                left: -280px;
+                z-index: 1000;
+                transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+            .sidebar.show {
+                left: 0;
+            }
+            .main-container {
+                margin-left: 0;
+            }
+            .mobile-header {
+                display: flex;
+            }
+            .main-content {
+                padding: 20px;
+            }
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+            .header .btn-logout {
+                width: 100%;
+                justify-content: center;
+            }
+            .sidebar-overlay.show {
+                display: block;
+            }
+            .card-panel {
+                overflow-x: auto;
+            }
+            table {
+                min-width: 650px;
+            }
+        }
     </style>
     @yield('styles')
 </head>
 <body>
+    <!-- Sidebar Overlay for mobile -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- Mobile Top Header Bar -->
+    <div class="mobile-header">
+        <button class="btn-toggle-sidebar" id="btnToggleSidebar">
+            <i class="fa-solid fa-bars"></i>
+        </button>
+        <div style="font-weight: 800; font-size: 16px; color: #333; display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-piggy-bank" style="color: #FF528F;"></i> Danaku Console
+        </div>
+        <div style="width: 32px;"></div> <!-- Spacer to center the brand -->
+    </div>
+
     <!-- Sidebar -->
     <div class="sidebar">
         <div class="sidebar-brand">
@@ -246,6 +333,23 @@
                 confirmButtonColor: '#FF528F'
             });
         @endif
+
+        // Sidebar responsive toggler
+        const sidebar = document.querySelector('.sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        const btnToggleSidebar = document.getElementById('btnToggleSidebar');
+
+        if (btnToggleSidebar && sidebar && sidebarOverlay) {
+            btnToggleSidebar.addEventListener('click', function() {
+                sidebar.classList.toggle('show');
+                sidebarOverlay.classList.toggle('show');
+            });
+
+            sidebarOverlay.addEventListener('click', function() {
+                sidebar.classList.remove('show');
+                sidebarOverlay.classList.remove('show');
+            });
+        }
     </script>
     @yield('scripts')
 </body>
