@@ -68,6 +68,7 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
   bool _isNumpadCollapsed = false;
   bool _voiceManuallyStopped = false;
 
+  bool _isAiScanActive = true;
   late AnimationController _pulseController;
   final List<Transaksi> _queuedTransactions = [];
 
@@ -351,89 +352,107 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (context) => SafeArea(
-        top: false,
-        child: Container(
-          padding: const EdgeInsets.only(top: 10, bottom: 10),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        const Text(
-                          "Scan Struk Belanja",
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black87),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.pink.shade50,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.pink.shade100),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => SafeArea(
+          top: false,
+          child: Container(
+            padding: const EdgeInsets.only(top: 10, bottom: 10),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Text(
+                            "Scan Struk Belanja",
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black87),
                           ),
-                          child: const Text(
-                            "by AI",
-                            style: TextStyle(
-                              color: Colors.pink,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: _isAiScanActive ? Colors.pink.shade50 : Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: _isAiScanActive ? Colors.pink.shade100 : Colors.grey.shade300),
                             ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.info_outline, color: Colors.pink),
-                      onPressed: () {
-                        showDialog(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                            title: Row(
-                              children: const [
-                                Icon(Icons.auto_awesome, color: Colors.pink),
-                                SizedBox(width: 8),
-                                Text("Cara Kerja AI Scan", style: TextStyle(fontWeight: FontWeight.bold)),
-                              ],
-                            ),
-                            content: const Text(
-                              "1. Ambil foto struk belanja Anda dengan kamera atau pilih dari galeri.\n\n"
-                              "2. AI OCR akan mendeteksi nominal total belanja, tanggal, kategori transaksi, dan nama toko secara otomatis.\n\n"
-                              "3. Transaksi Anda akan terisi otomatis ke dalam form tanpa perlu mengetik manual.\n\n"
-                              "Tips: Pastikan teks pada struk terlihat jelas, tidak kabur, dan mendapat cahaya yang cukup agar akurasi AI maksimal.",
-                              style: TextStyle(height: 1.4, fontSize: 14),
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                child: const Text("Mengerti", style: TextStyle(color: Colors.pink, fontWeight: FontWeight.bold)),
+                            child: Text(
+                              _isAiScanActive ? "AI Aktif" : "Hanya Foto",
+                              style: TextStyle(
+                                color: _isAiScanActive ? Colors.pink : Colors.grey.shade600,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
                               ),
-                            ],
+                            ),
                           ),
-                        );
-                      },
-                    ),
-                  ],
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          Switch(
+                            value: _isAiScanActive,
+                            activeColor: Colors.pink,
+                            onChanged: (val) {
+                              setModalState(() {
+                                _isAiScanActive = val;
+                              });
+                              setState(() {
+                                _isAiScanActive = val;
+                              });
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.info_outline, color: Colors.pink),
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                  title: Row(
+                                    children: const [
+                                      Icon(Icons.auto_awesome, color: Colors.pink),
+                                      SizedBox(width: 8),
+                                      Text("Cara Kerja AI Scan", style: TextStyle(fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
+                                  content: const Text(
+                                    "1. Ambil foto struk belanja Anda dengan kamera atau pilih dari galeri.\n\n"
+                                    "2. AI OCR akan mendeteksi nominal total belanja, tanggal, kategori transaksi, dan nama toko secara otomatis.\n\n"
+                                    "3. Transaksi Anda akan terisi otomatis ke dalam form tanpa perlu mengetik manual.\n\n"
+                                    "Tips: Pastikan teks pada struk terlihat jelas, tidak kabur, dan mendapat cahaya yang cukup agar akurasi AI maksimal.",
+                                    style: TextStyle(height: 1.4, fontSize: 14),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: const Text("Mengerti", style: TextStyle(color: Colors.pink, fontWeight: FontWeight.bold)),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.camera_alt, color: Colors.pink),
-                title: const Text("Kamera"),
-                onTap: () => Navigator.pop(context, ImageSource.camera),
-              ),
-              ListTile(
-                leading: const Icon(Icons.photo_library, color: Colors.pink),
-                title: const Text("Galeri Foto"),
-                onTap: () => Navigator.pop(context, ImageSource.gallery),
-              ),
-            ],
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.camera_alt, color: Colors.pink),
+                  title: const Text("Kamera"),
+                  onTap: () => Navigator.pop(context, ImageSource.camera),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_library, color: Colors.pink),
+                  title: const Text("Galeri Foto"),
+                  onTap: () => Navigator.pop(context, ImageSource.gallery),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -453,6 +472,17 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
     final savedPath = await _saveReceiptImageLocally(pickedFile);
     if (savedPath != null && mounted) {
       setState(() => _receiptImagePath = savedPath);
+    }
+
+    if (!_isAiScanActive) {
+      if (mounted) {
+        CustomSnackBar.show(
+          context,
+          message: "Foto struk terlampir & tersimpan (Tanpa AI)",
+          isSuccess: true,
+        );
+      }
+      return;
     }
 
     setState(() => _isScanningReceipt = true);

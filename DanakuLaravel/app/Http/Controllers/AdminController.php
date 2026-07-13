@@ -252,6 +252,11 @@ class AdminController extends Controller
                     $transactionCount = count($payload['transaksi']);
                 }
             }
+
+            // Hitung total token terpakai oleh user ini
+            $totalChars = ApiLog::where('user_id', $u->id)->sum('characters_processed');
+            $userTokens = (int) ceil($totalChars / 4);
+
             $usersList[] = [
                 'id' => $u->id,
                 'name' => $u->name,
@@ -260,6 +265,7 @@ class AdminController extends Controller
                 'last_sync' => $u->backup ? $u->backup->updated_at->diffForHumans() : 'Belum pernah',
                 'backup_size' => number_format($backupSize / 1024, 2) . ' KB',
                 'transactions' => $transactionCount,
+                'tokens' => $userTokens,
             ];
         }
 
