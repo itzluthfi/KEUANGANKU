@@ -204,7 +204,40 @@
         font-family: monospace;
         font-size: 11px;
     }
+
+    /* Toggle Switch */
+    .switch-toggle input:checked + .slider-toggle {
+        background-color: #FF528F;
+    }
+    .switch-toggle input:focus + .slider-toggle {
+        box-shadow: 0 0 1px #FF528F;
+    }
+    .switch-toggle input:checked + .slider-toggle:before {
+        transform: translateX(20px);
+    }
+    .slider-toggle:before {
+        position: absolute;
+        content: "";
+        height: 18px;
+        width: 18px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: .4s;
+        border-radius: 50%;
+    }
 </style>
+
+<!-- Auto Refresh Panel -->
+<div style="display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-bottom: 20px;">
+    <div style="font-size: 13px; font-weight: 700; color: #555; display: inline-flex; align-items: center; gap: 6px;">
+        <i class="fa-solid fa-arrows-rotate" id="refresh-icon"></i> Auto Refresh (30s):
+    </div>
+    <label class="switch-toggle" style="position: relative; display: inline-block; width: 44px; height: 24px;">
+        <input type="checkbox" id="auto-refresh-check" style="opacity: 0; width: 0; height: 0;">
+        <span class="slider-toggle" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 24px;"></span>
+    </label>
+</div>
 
 <!-- Token Usage Summary -->
 <div class="token-summary">
@@ -453,6 +486,53 @@
             });
         </script>
     </div>
+
+    <!-- Monthly Token usage Bar Chart -->
+    <div class="chart-card-lg">
+        <div class="card-panel-title"><i class="fa-solid fa-chart-bar" style="color:#FF528F;"></i> Tren Penggunaan Token Bulanan (6 Bulan Terakhir)</div>
+        <div style="height:250px;">
+            <canvas id="monthlyTokenChart"></canvas>
+        </div>
+        <script>
+            new Chart(document.getElementById('monthlyTokenChart').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: {!! json_encode($monthlyTokensLabels) !!},
+                    datasets: [{
+                        label: 'Token',
+                        data: {!! json_encode($monthlyTokensData) !!},
+                        backgroundColor: 'rgba(255, 82, 143, 0.2)',
+                        borderColor: '#FF528F',
+                        borderWidth: 2,
+                        borderRadius: 8,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { 
+                            beginAtZero: true, 
+                            grid: { color: '#F0F0F0' },
+                            ticks: { 
+                                font: { family: 'Outfit' },
+                                callback: function(value) {
+                                    return value >= 1000 ? (value/1000) + 'k' : value;
+                                }
+                            }
+                        },
+                        x: { 
+                            grid: { display: false }, 
+                            ticks: { font: { family: 'Outfit', size: 10 } } 
+                        }
+                    }
+                }
+            });
+        </script>
+    </div>
 </div>
 
 <!-- History log -->
@@ -549,5 +629,45 @@ function escapeHtml(text) {
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
 }
+
+// Auto-Refresh Logic
+document.addEventListener("DOMContentLoaded", function() {
+    const refreshCheck = document.getElementById('auto-refresh-check');
+    const refreshIcon = document.getElementById('refresh-icon');
+    let refreshInterval;
+
+    if (localStorage.getItem('ai_monitor_auto_refresh') === 'true') {
+        if (refreshCheck) refreshCheck.checked = true;
+        startRefresh();
+    }
+
+    if (refreshCheck) {
+        refreshCheck.addEventListener('change', function() {
+            if (this.checked) {
+                localStorage.setItem('ai_monitor_auto_refresh', 'true');
+                startRefresh();
+            } else {
+                localStorage.setItem('ai_monitor_auto_refresh', 'false');
+                stopRefresh();
+            }
+        });
+    }
+
+    function startRefresh() {
+        if (refreshIcon) {
+            refreshIcon.classList.add('fa-spin');
+        }
+        refreshInterval = setInterval(function() {
+            window.location.reload();
+        }, 30000); // 30 seconds
+    }
+
+    function stopRefresh() {
+        if (refreshIcon) {
+            refreshIcon.classList.remove('fa-spin');
+        }
+        clearInterval(refreshInterval);
+    }
+});
 </script>
 @endsection

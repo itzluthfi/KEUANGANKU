@@ -209,6 +209,20 @@ class AdminController extends Controller
                 'calls' => (int) $row->total_calls,
             ]);
 
+        // 📊 7. Bulanan Token Usage Chart (Tren 6 Bulan Terakhir)
+        $monthlyTokensLabels = [];
+        $monthlyTokensData = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $monthStart = now()->subMonths($i)->startOfMonth();
+            $monthEnd = now()->subMonths($i)->endOfMonth();
+            
+            $charsInMonth = ApiLog::whereBetween('created_at', [$monthStart, $monthEnd])->sum('characters_processed');
+            $tokensInMonth = (int) ceil($charsInMonth / 4);
+            
+            $monthlyTokensLabels[] = $monthStart->translatedFormat('F Y');
+            $monthlyTokensData[] = $tokensInMonth;
+        }
+
         return view('admin.ai_monitoring', compact(
             'limits',
             'usageToday',
@@ -220,7 +234,9 @@ class AdminController extends Controller
             'allLogs',
             'tokenTotal',
             'tokenTotalCalls',
-            'tokenPerModel'
+            'tokenPerModel',
+            'monthlyTokensLabels',
+            'monthlyTokensData'
         ));
     }
 

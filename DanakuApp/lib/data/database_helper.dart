@@ -33,7 +33,7 @@ class DatabaseHelper {
     final path = join(dbPath, filePath);
     return await openDatabase(
       path, 
-      version: 8, 
+      version: 9, 
       onCreate: _createDB, 
       onUpgrade: _upgradeDB,
       onOpen: (db) async {
@@ -158,6 +158,17 @@ class DatabaseHelper {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       uuid TEXT,
       deleted_at TEXT
+    )
+    ''');
+
+    await db.execute('''
+    CREATE TABLE IF NOT EXISTS ai_chat_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      advice_text TEXT,
+      provider TEXT,
+      total_income INTEGER,
+      total_expense INTEGER,
+      created_at TEXT
     )
     ''');
 
@@ -296,6 +307,18 @@ class DatabaseHelper {
       } catch (e) {
         // Column might already exist
       }
+    }
+    if (oldVersion < 9) {
+      await db.execute('''
+      CREATE TABLE IF NOT EXISTS ai_chat_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        advice_text TEXT,
+        provider TEXT,
+        total_income INTEGER,
+        total_expense INTEGER,
+        created_at TEXT
+      )
+      ''');
     }
   }
 
@@ -971,5 +994,27 @@ class DatabaseHelper {
       buffer.write(values[i].toRadixString(16).padLeft(2, '0'));
     }
     return buffer.toString();
+  }
+
+  // --- FUNGSI RIWAYAT SARAN AI ---
+  Future<int> insertAiAdvice(String advice, String provider, int income, int expense) async {
+    final db = await database;
+    return await db.insert('ai_chat_history', {
+      'advice_text': advice,
+      'provider': provider,
+      'total_income': income,
+      'total_expense': expense,
+      'created_at': DateTime.now().toIso8601String(),
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> fetchAiAdviceHistory() async {
+    final db = await database;
+    return await db.query('ai_chat_history', orderBy: 'created_at DESC');
+  }
+
+  Future<int> clearAiAdviceHistory() async {
+    final db = await database;
+    return await db.delete('ai_chat_history');
   }
 }

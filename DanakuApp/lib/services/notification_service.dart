@@ -141,10 +141,12 @@ class NotificationService {
     if (!(Platform.isAndroid || Platform.isIOS)) return;
     if (!_isInitialized) await init();
     try {
-      await _localNotifications.cancel(100);
-      debugPrint("Daily notification successfully cancelled.");
+      for (int i = 0; i < 7; i++) {
+        await _localNotifications.cancel(100 + i);
+      }
+      debugPrint("Daily notifications successfully cancelled.");
     } catch (e) {
-      debugPrint("Error cancelling daily notification: $e");
+      debugPrint("Error cancelling daily notifications: $e");
     }
   }
 
@@ -155,60 +157,87 @@ class NotificationService {
     if (!_isInitialized) await init();
 
     try {
-      // Cancel previous notification with the same ID to avoid duplicates
-      await _localNotifications.cancel(100);
+      // Bersihkan notifikasi harian lama terlebih dahulu untuk mencegah duplikasi
+      await cancelDailyNotification();
 
-      // Schedule the new daily notification (Exact)
-      await _localNotifications.zonedSchedule(
-        100,
-        'Pengingat Danaku',
-        'Jangan lupa mencatat pengeluaran Anda hari ini agar keuangan tetap terpantau!',
-        _nextInstanceOfTime(hour, minute),
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'daily_reminder_channel',
-            'Daily Reminder',
-            channelDescription: 'Channel untuk pengingat harian mencatat transaksi',
-            importance: Importance.max,
-            priority: Priority.high,
-            playSound: true,
-          ),
-          iOS: DarwinNotificationDetails(
-            presentAlert: true,
-            presentBadge: true,
-            presentSound: true,
-          ),
-        ),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-        matchDateTimeComponents: DateTimeComponents.time,
-      );
-      debugPrint("Daily notification successfully scheduled (Exact) at $hour:$minute");
-    } catch (e) {
-      debugPrint("Error scheduling exact daily notification, trying inexact fallback: $e");
-      try {
+      // Daftar pesan unik motivasi finansial untuk setiap hari dalam seminggu
+      final smartMessages = {
+        DateTime.monday: "Mulai minggu baru dengan keuangan yang rapi. Catat transaksi pertamamu hari ini!",
+        DateTime.tuesday: "Keuangan terkendali, hidup lebih tenang. Sudahkah kamu mencatat pengeluaran hari ini?",
+        DateTime.wednesday: "Sudah setengah minggu berjalan! Yuk tinjau sisa anggaran belanjamu di Danaku.",
+        DateTime.thursday: "Uang yang tidak dicatat cenderung menguap begitu saja. Catat jajanmu hari ini, yuk!",
+        DateTime.friday: "Jelang akhir pekan, pastikan budget nongkrongmu aman. Yuk catat dulu keuanganmu!",
+        DateTime.saturday: "Hari Sabtu saatnya bersantai, tapi jangan lupa catat belanjaan akhir pekanmu di Danaku!",
+        DateTime.sunday: "Evaluasi mingguan yuk! Catat semua pengeluaran minggu ini agar siap hadapi senin besok.",
+      };
+
+      // Jadwalkan masing-masing hari secara terpisah
+      for (int dayOfWeek = 1; dayOfWeek <= 7; dayOfWeek++) {
+        final message = smartMessages[dayOfWeek] ?? 'Jangan lupa mencatat pengeluaran Anda hari ini agar keuangan tetap terpantau!';
+        final notificationId = 100 + dayOfWeek - 1; // 100 s.d 106
+
         await _localNotifications.zonedSchedule(
-          100,
+          notificationId,
           'Pengingat Danaku',
-          'Jangan lupa mencatat pengeluaran Anda hari ini agar keuangan tetap terpantau!',
-          _nextInstanceOfTime(hour, minute),
+          message,
+          _nextInstanceOfWeekdayTime(dayOfWeek, hour, minute),
           const NotificationDetails(
             android: AndroidNotificationDetails(
-              'daily_reminder_channel_inexact',
-              'Daily Reminder (Inexact)',
-              channelDescription: 'Channel untuk pengingat harian',
+              'daily_reminder_channel_v2',
+              'Daily Reminder Smart',
+              channelDescription: 'Channel pengingat harian dengan pesan motivasi cerdas yang bervariasi',
               importance: Importance.max,
               priority: Priority.high,
               playSound: true,
             ),
+            iOS: DarwinNotificationDetails(
+              presentAlert: true,
+              presentBadge: true,
+              presentSound: true,
+            ),
           ),
-          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
           uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-          matchDateTimeComponents: DateTimeComponents.time,
+          matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
         );
-        debugPrint("Daily notification successfully scheduled (Inexact fallback) at $hour:$minute");
+      }
+      debugPrint("7 weekly scheduled daily notifications successfully set at $hour:$minute");
+    } catch (e) {
+      debugPrint("Error scheduling exact daily notifications, trying inexact fallback: $e");
+      try {
+        final smartMessages = {
+          1: "Mulai minggu baru dengan keuangan yang rapi. Catat transaksi pertamamu hari ini!",
+          2: "Keuangan terkendali, hidup lebih tenang. Sudahkah kamu mencatat pengeluaran hari ini?",
+          3: "Sudah setengah minggu berjalan! Yuk tinjau sisa anggaran belanjamu di Danaku.",
+          4: "Uang yang tidak dicatat cenderung menguap begitu saja. Catat jajanmu hari ini, yuk!",
+          5: "Jelang akhir pekan, pastikan budget nongkrongmu aman. Yuk catat dulu keuanganmu!",
+          6: "Hari Sabtu saatnya bersantai, tapi jangan lupa catat belanjaan akhir pekanmu di Danaku!",
+          7: "Evaluasi mingguan yuk! Catat semua pengeluaran minggu ini agar siap hadapi senin besok.",
+        };
+        for (int dayOfWeek = 1; dayOfWeek <= 7; dayOfWeek++) {
+          final message = smartMessages[dayOfWeek] ?? 'Jangan lupa mencatat pengeluaran Anda hari ini!';
+          final notificationId = 100 + dayOfWeek - 1;
+          await _localNotifications.zonedSchedule(
+            notificationId,
+            'Pengingat Danaku',
+            message,
+            _nextInstanceOfWeekdayTime(dayOfWeek, hour, minute),
+            const NotificationDetails(
+              android: AndroidNotificationDetails(
+                'daily_reminder_channel_inexact',
+                'Daily Reminder (Inexact)',
+                importance: Importance.max,
+                priority: Priority.high,
+                playSound: true,
+              ),
+            ),
+            androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+            uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+            matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+          );
+        }
       } catch (e2) {
-        debugPrint("Error scheduling inexact daily notification: $e2");
+        debugPrint("Error scheduling fallback notifications: $e2");
       }
     }
   }
@@ -229,6 +258,14 @@ class NotificationService {
       targetUtc.minute,
       targetUtc.second,
     );
+  }
+
+  tz.TZDateTime _nextInstanceOfWeekdayTime(int dayOfWeek, int hour, int minute) {
+    var tzDateTime = _nextInstanceOfTime(hour, minute);
+    while (tzDateTime.weekday != dayOfWeek) {
+      tzDateTime = tzDateTime.add(const Duration(days: 1));
+    }
+    return tzDateTime;
   }
 
   void setupFcmListeners() {
