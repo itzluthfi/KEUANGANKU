@@ -71,6 +71,7 @@ class SyncService {
           Uri.parse('$laravelBaseUrl/receipts'),
         );
         request.headers['X-Danaku-API-Key'] = 'secure_danaku_key_2026';
+        request.headers['Accept'] = 'application/json';
         request.files.add(await http.MultipartFile.fromPath('image', path));
 
         final streamed = await request.send().timeout(const Duration(seconds: 30));
@@ -133,6 +134,7 @@ class SyncService {
       try {
         final response = await http.post(
           Uri.parse('$laravelBaseUrl/login'),
+          headers: {'Accept': 'application/json'},
           body: {'email': email, 'password': password},
         );
         if (response.statusCode == 200) {
@@ -174,6 +176,7 @@ class SyncService {
       try {
         final response = await http.post(
           Uri.parse('$laravelBaseUrl/register'),
+          headers: {'Accept': 'application/json'},
           body: {'email': email, 'password': password},
         );
         if (response.statusCode == 201 || response.statusCode == 200) {
@@ -223,12 +226,17 @@ class SyncService {
           Uri.parse('$laravelBaseUrl/backup'),
           headers: {
             'Content-Type': 'application/json',
+            'Accept': 'application/json',
             'Authorization': 'Bearer $token',
           },
           body: jsonEncode(payload),
         );
 
         debugPrint("Real Server Backup Response: Status=${response.statusCode}, Body=${response.body}");
+
+        if (response.statusCode == 401) {
+          throw Exception("Sesi masuk Anda telah berakhir. Silakan keluar akun (logout) lalu masuk kembali.");
+        }
 
         if (response.statusCode != 200 && response.statusCode != 201) {
           throw Exception("Server Error (${response.statusCode}): ${response.body}");
@@ -306,12 +314,15 @@ class SyncService {
           Uri.parse('$laravelBaseUrl/restore'),
           headers: {
             'Content-Type': 'application/json',
+            'Accept': 'application/json',
             'Authorization': 'Bearer $token',
           },
         );
         if (response.statusCode == 200) {
           final responseData = jsonDecode(response.body);
           return responseData['data'] as Map<String, dynamic>;
+        } else if (response.statusCode == 401) {
+          throw Exception("Sesi masuk Anda telah berakhir. Silakan keluar akun (logout) lalu masuk kembali.");
         } else if (response.statusCode == 404) {
           throw Exception("Tidak ditemukan data cadangan di server untuk akun Anda.");
         } else {
@@ -348,6 +359,7 @@ class SyncService {
           Uri.parse('$laravelBaseUrl/restore'),
           headers: {
             'Content-Type': 'application/json',
+            'Accept': 'application/json',
             'Authorization': 'Bearer $token',
           },
         );
@@ -359,6 +371,8 @@ class SyncService {
           jsonString = jsonEncode(
             responseData['data'],
           ); // Sesuaikan dengan struktur response Laravel Anda
+        } else if (response.statusCode == 401) {
+          throw Exception("Sesi masuk Anda telah berakhir. Silakan keluar akun (logout) lalu masuk kembali.");
         } else {
           debugPrint("Real Server Restore failed with status: ${response.statusCode}");
           return false;
@@ -594,6 +608,7 @@ class SyncService {
         Uri.parse('$laravelBaseUrl/save-fcm-token'),
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
           'Authorization': 'Bearer $token',
         },
         body: jsonEncode({'fcm_token': fcmToken}),
