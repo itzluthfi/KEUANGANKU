@@ -242,4 +242,41 @@
         </table>
     @endif
 </div>
+
+<!-- Status Sistem & Lingkungan Server -->
+<div class="card-panel" style="margin-top: 30px;">
+    <div class="card-panel-title"><i class="fa-solid fa-server" style="color:#FF528F;"></i> Status Lingkungan Server & Sistem</div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; padding-top: 10px;">
+        <div style="background: #F9F9F9; padding: 16px; border-radius: 12px; border: 1px solid #EEE;">
+            <div style="font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase;">Versi PHP</div>
+            <div style="font-size: 16px; font-weight: 800; color: #333; margin-top: 5px;">{{ PHP_VERSION }}</div>
+        </div>
+        <div style="background: #F9F9F9; padding: 16px; border-radius: 12px; border: 1px solid #EEE;">
+            <div style="font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase;">Framework Laravel</div>
+            <div style="font-size: 16px; font-weight: 800; color: #333; margin-top: 5px;">v{{ app()->version() }}</div>
+        </div>
+        <div style="background: #F9F9F9; padding: 16px; border-radius: 12px; border: 1px solid #EEE;">
+            <div style="font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase;">Koneksi Database</div>
+            <div style="font-size: 16px; font-weight: 800; color: #333; margin-top: 5px; text-transform: uppercase;">{{ DB::connection()->getDriverName() }}</div>
+        </div>
+        <div style="background: #F9F9F9; padding: 16px; border-radius: 12px; border: 1px solid #EEE;">
+            <div style="font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase;">Sistem Operasi</div>
+            <div style="font-size: 16px; font-weight: 800; color: #333; margin-top: 5px;">{{ PHP_OS }}</div>
+        </div>
+        <div style="background: #F9F9F9; padding: 16px; border-radius: 12px; border: 1px solid #EEE;">
+            <div style="font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase;">Environment</div>
+            <div style="font-size: 16px; font-weight: 800; color: #333; margin-top: 5px; text-transform: uppercase;">{{ app()->environment() }}</div>
+        </div>
+        <div style="background: #F9F9F9; padding: 16px; border-radius: 12px; border: 1px solid #EEE;">
+            <div style="font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase;">Mode Debug App</div>
+            <div style="font-size: 16px; font-weight: 800; color: #333; margin-top: 5px;">
+                @if(config('app.debug'))
+                    <span style="color:#F57C00;">AKTIF (Dev)</span>
+                @else
+                    <span style="color:#2E7D32;">NON-AKTIF (Prod)</span>
+                @endif
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
