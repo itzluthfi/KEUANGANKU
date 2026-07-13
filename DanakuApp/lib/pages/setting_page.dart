@@ -2306,10 +2306,39 @@ class _SyncProgressDialogState extends State<_SyncProgressDialog> {
       }
     } catch (e) {
       if (!mounted) return;
+      
+      final rawError = e.toString().replaceAll("Exception: ", "");
+      String friendlyMessage = rawError;
+      
+      if (rawError.contains("Server Error")) {
+        if (rawError.contains("422")) {
+          friendlyMessage = "Gagal memproses pencadangan. Data transaksi atau dompet tidak valid.";
+        } else if (rawError.contains("401")) {
+          friendlyMessage = "Sesi Anda telah berakhir. Silakan keluar akun awan, lalu login kembali.";
+        } else if (rawError.contains("404")) {
+          friendlyMessage = "Data cadangan tidak ditemukan di server awan.";
+        } else if (rawError.contains("429")) {
+          friendlyMessage = "Terlalu banyak permintaan sinkronisasi. Silakan tunggu beberapa menit.";
+        } else if (rawError.contains("500")) {
+          friendlyMessage = "Server sedang mengalami gangguan internal. Silakan hubungi tim dukungan.";
+        } else if (rawError.contains("503")) {
+          friendlyMessage = "Server Awan sedang dalam pemeliharaan (maintenance). Silakan coba lagi nanti.";
+        } else {
+          friendlyMessage = "Server awan menolak permintaan sinkronisasi.";
+        }
+      } else if (rawError.toLowerCase().contains("socketexception") || 
+                 rawError.toLowerCase().contains("connection refused") ||
+                 rawError.toLowerCase().contains("failed host lookup")) {
+        friendlyMessage = "Koneksi internet gagal atau terputus. Pastikan perangkat terhubung ke internet.";
+      } else if (rawError.toLowerCase().contains("timeout")) {
+        friendlyMessage = "Waktu koneksi ke server habis (timeout). Silakan periksa jaringan Anda.";
+      }
+
       setState(() {
         isError = true;
-        errorMessage = e.toString().replaceAll("Exception: ", "");
+        errorMessage = friendlyMessage;
       });
+      debugPrint("Raw Sync Error (Admin info): $rawError");
     }
   }
 
