@@ -263,6 +263,10 @@
             <span>Sisa Kuota: {{ number_format($remainingQuota['gemini']) }}</span>
             <span>Speed: {{ $latencyAvg['gemini'] }} ms</span>
         </div>
+        <div class="quota-footer" style="margin-top: 8px; border-top: 1px dashed #EEE; padding-top: 8px;">
+            <span>Rasio Sukses:</span>
+            <span style="font-weight: bold; color: {{ $successRate['gemini'] >= 95 ? '#2ECC71' : ($successRate['gemini'] >= 80 ? '#F38020' : '#D32F2F') }}">{{ $successRate['gemini'] }}%</span>
+        </div>
     </div>
 
     <!-- Cerebras -->
@@ -284,6 +288,10 @@
         <div class="quota-footer">
             <span>Sisa Kuota: {{ number_format($remainingQuota['cerebras']) }}</span>
             <span>Speed: {{ $latencyAvg['cerebras'] }} ms</span>
+        </div>
+        <div class="quota-footer" style="margin-top: 8px; border-top: 1px dashed #EEE; padding-top: 8px;">
+            <span>Rasio Sukses:</span>
+            <span style="font-weight: bold; color: {{ $successRate['cerebras'] >= 95 ? '#2ECC71' : ($successRate['cerebras'] >= 80 ? '#F38020' : '#D32F2F') }}">{{ $successRate['cerebras'] }}%</span>
         </div>
     </div>
 
@@ -307,6 +315,10 @@
             <span>Sisa Kuota: {{ number_format($remainingQuota['groq']) }}</span>
             <span>Speed: {{ $latencyAvg['groq'] }} ms</span>
         </div>
+        <div class="quota-footer" style="margin-top: 8px; border-top: 1px dashed #EEE; padding-top: 8px;">
+            <span>Rasio Sukses:</span>
+            <span style="font-weight: bold; color: {{ $successRate['groq'] >= 95 ? '#2ECC71' : ($successRate['groq'] >= 80 ? '#F38020' : '#D32F2F') }}">{{ $successRate['groq'] }}%</span>
+        </div>
     </div>
 
     <!-- Cloudflare -->
@@ -329,6 +341,10 @@
             <span>Sisa Kuota: {{ number_format($remainingQuota['cloudflare']) }}</span>
             <span>Speed: {{ $latencyAvg['cloudflare'] }} ms</span>
         </div>
+        <div class="quota-footer" style="margin-top: 8px; border-top: 1px dashed #EEE; padding-top: 8px;">
+            <span>Rasio Sukses:</span>
+            <span style="font-weight: bold; color: {{ $successRate['cloudflare'] >= 95 ? '#2ECC71' : ($successRate['cloudflare'] >= 80 ? '#F38020' : '#D32F2F') }}">{{ $successRate['cloudflare'] }}%</span>
+        </div>
     </div>
 
     <!-- Nvidia -->
@@ -350,6 +366,10 @@
         <div class="quota-footer">
             <span>Sisa Kuota: {{ number_format($remainingQuota['nvidia']) }}</span>
             <span>Speed: {{ $latencyAvg['nvidia'] }} ms</span>
+        </div>
+        <div class="quota-footer" style="margin-top: 8px; border-top: 1px dashed #EEE; padding-top: 8px;">
+            <span>Rasio Sukses:</span>
+            <span style="font-weight: bold; color: {{ $successRate['nvidia'] >= 95 ? '#2ECC71' : ($successRate['nvidia'] >= 80 ? '#F38020' : '#D32F2F') }}">{{ $successRate['nvidia'] }}%</span>
         </div>
     </div>
 </div>
