@@ -458,17 +458,22 @@ class SyncService {
         // 2. Sinkronisasi & Merge Kategori
         for (var c in categoriesList) {
           final cMap = Map<String, dynamic>.from(c);
+          final nama = cMap['nama'] ?? cMap['name'];
+          final jenis = cMap['jenis'] ?? cMap['type'] ?? cMap['jenis_transaksi'];
+          
+          if (nama == null || jenis == null) continue;
+
           final existing = await txn.query(
             'categories',
-            where: 'name = ? AND type = ? AND book_id = ?',
-            whereArgs: [cMap['name'], cMap['type'], cMap['book_id']],
+            where: 'nama = ? AND jenis = ?',
+            whereArgs: [nama, jenis],
           );
           if (existing.isEmpty) {
             await txn.insert('categories', {
-              'book_id': cMap['book_id'],
-              'name': cMap['name'],
-              'type': cMap['type'],
+              'nama': nama,
+              'jenis': jenis,
               'icon_code': cMap['icon_code'],
+              'image_path': cMap['image_path'],
             });
           }
         }
