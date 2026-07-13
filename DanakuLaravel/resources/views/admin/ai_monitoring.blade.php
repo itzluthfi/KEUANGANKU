@@ -111,6 +111,10 @@
     .provider-cloudflare { background-color: #F38020; }
     .provider-nvidia { background-color: #2ECC71; }
     
+    .badge-stt { background-color: #E3F2FD; color: #1565C0; }
+    .badge-ocr { background-color: #FCE4EC; color: #C2185B; }
+    .badge-advisor { background-color: #E8F5E9; color: #2E7D32; }
+    
     /* Token Usage Summary */
     .token-summary {
         display: flex;
@@ -466,6 +470,7 @@
                     <th>Model</th>
                     <th>Status</th>
                     <th>Latency</th>
+                    <th>Token</th>
                     <th>Pesan Error</th>
                     <th>Respon AI</th>
                 </tr>
@@ -475,10 +480,11 @@
                     <tr>
                         <td>{{ $log->created_at->format('d/m/y H:i:s') }}</td>
                         <td><strong>{{ $log->user ? $log->user->name : 'Guest User' }}</strong></td>
-                        <td><span class="badge {{ $log->feature === 'stt' ? 'badge-stt' : 'badge-ocr' }}">{{ strtoupper($log->feature) }}</span></td>
+                        <td><span class="badge {{ $log->feature === 'stt' ? 'badge-stt' : ($log->feature === 'ocr' ? 'badge-ocr' : 'badge-advisor') }}">{{ strtoupper($log->feature) }}</span></td>
                         <td><span class="provider-pill provider-{{ strtolower($log->provider) }}">{{ $log->model_name ?? $log->provider }}</span></td>
                         <td><span class="badge {{ $log->status === 'success' ? 'badge-success' : 'badge-danger' }}">{{ $log->status }}</span></td>
                         <td><strong>{{ number_format($log->latency_ms) }} ms</strong></td>
+                        <td><strong>{{ $log->characters_processed > 0 ? number_format(ceil($log->characters_processed / 4)) : '-' }}</strong></td>
                         <td>
                             @if($log->error_message)
                                 <span class="clickable-cell" style="color:#C62828;"
