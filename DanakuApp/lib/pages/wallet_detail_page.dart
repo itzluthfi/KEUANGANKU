@@ -29,6 +29,107 @@ class _WalletDetailPageState extends State<WalletDetailPage> {
     });
   }
 
+  void _showAdjustBalanceDialog() {
+    final TextEditingController balanceController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: const [
+              Icon(Icons.tune, color: Colors.pink),
+              SizedBox(width: 10),
+              Text("Sesuaikan Saldo", style: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold, fontSize: 16)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Saldo di Aplikasi saat ini: Rp ${NumberFormat.decimalPattern('id').format(widget.wallet.saldo)}",
+                style: const TextStyle(fontSize: 13, color: Colors.black87, fontFamily: 'Outfit'),
+              ),
+              const SizedBox(height: 15),
+              const Text(
+                "Masukkan Saldo Fisik Riil:",
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey, fontFamily: 'Outfit'),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: balanceController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  hintText: "Contoh: 50000",
+                  prefixText: "Rp ",
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                ),
+                style: const TextStyle(fontFamily: 'Outfit', fontSize: 14),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Batal", style: TextStyle(color: Colors.grey, fontFamily: 'Outfit')),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.pink,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () async {
+                final input = balanceController.text.trim();
+                if (input.isEmpty) return;
+                final newSaldo = int.tryParse(input);
+                if (newSaldo == null) return;
+
+                final diff = newSaldo - widget.wallet.saldo;
+                if (diff == 0) {
+                  Navigator.pop(context);
+                  return;
+                }
+
+                final jenis = diff > 0 ? "masuk" : "keluar";
+                final jumlah = diff.abs();
+
+                final tx = Transaksi(
+                  keterangan: "Penyesuaian Saldo",
+                  jumlah: jumlah,
+                  jenis: jenis,
+                  tanggal: DateTime.now(),
+                  walletNama: widget.wallet.nama,
+                  kategori: "Lainnya",
+                );
+
+                await DatabaseHelper.instance.insertTransaksi(tx);
+                
+                setState(() {
+                  widget.wallet.saldo = newSaldo;
+                });
+
+                Navigator.pop(context);
+                _loadTransactions();
+                
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Saldo berhasil disesuaikan dengan sukses!"),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              },
+              child: const Text("Simpan", style: TextStyle(fontFamily: 'Outfit')),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   int get totalMasuk {
     return _walletTransactions
         .where((t) => t.jenis == "masuk")
@@ -50,6 +151,11 @@ class _WalletDetailPageState extends State<WalletDetailPage> {
         leading: IconButton(icon: const Icon(Icons.close, color: Colors.white), onPressed: () => Navigator.pop(context)),
         title: const Text("Detail akun", style: TextStyle(color: Colors.white)),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.tune, color: Colors.white),
+            tooltip: "Sesuaikan Saldo",
+            onPressed: _showAdjustBalanceDialog,
+          ),
           IconButton(
             icon: const Icon(Icons.edit, color: Colors.white),
             onPressed: () {

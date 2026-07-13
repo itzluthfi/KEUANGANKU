@@ -31,7 +31,7 @@ class DatabaseHelper {
   Future<Database> _initDB(String filePath) async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
-    return await openDatabase(path, version: 7, onCreate: _createDB, onUpgrade: _upgradeDB);
+    return await openDatabase(path, version: 8, onCreate: _createDB, onUpgrade: _upgradeDB);
   }
 
   Future _createDB(Database db, int version) async {
@@ -55,7 +55,8 @@ class DatabaseHelper {
       items_json TEXT,
       receipt_path TEXT,
       receipt_url TEXT,
-      uuid TEXT
+      uuid TEXT,
+      transfer_linked_uuid TEXT
     )
     ''');
 
@@ -266,6 +267,13 @@ class DatabaseHelper {
         deleted_at TEXT
       )
       ''');
+    }
+    if (oldVersion < 8) {
+      try {
+        await db.execute('ALTER TABLE transaksi ADD COLUMN transfer_linked_uuid TEXT');
+      } catch (e) {
+        // Column might already exist
+      }
     }
   }
 
@@ -496,6 +504,26 @@ class DatabaseHelper {
     return result.map((json) => Transaksi.fromMap(json)).toList();
   }
 
+  Future<Map<String, String>?> getSuggestionForDescription(String desc) async {
+    if (desc.trim().isEmpty) return null;
+    final db = await database;
+    final result = await db.rawQuery('''
+      SELECT kategori, walletNama, COUNT(*) as cnt 
+      FROM transaksi 
+      WHERE LOWER(keterangan) = ? AND book_id = ?
+      GROUP BY kategori, walletNama 
+      ORDER BY cnt DESC LIMIT 1
+    ''', [desc.trim().toLowerCase(), AppData.activeBookId]);
+
+    if (result.isNotEmpty) {
+      return {
+        'kategori': result.first['kategori'] as String? ?? '',
+        'walletNama': result.first['walletNama'] as String? ?? '',
+      };
+    }
+    return null;
+  }
+
   Future<void> saveWallets(List<Wallet> wallets) async {
     final db = await database;
     await db.delete('wallets', where: 'book_id = ?', whereArgs: [AppData.activeBookId]);
@@ -521,42 +549,77 @@ class DatabaseHelper {
     )).toList();
   }
 
+  Future<void> _reverseWalletBalance(Transaction txn, String walletNama, String jenis, int jumlah) async {
+    final List<Map<String, dynamic>> walletMaps = await txn.query(
+      'wallets',
+      where: 'nama = ? AND book_id = ?',
+      whereArgs: [walletNama, AppData.activeBookId],
+    );
+
+    if (walletMaps.isNotEmpty) {
+      int saldoSekarang = walletMaps.first['saldo'] as int;
+      int saldoBaru;
+      if (jenis.toLowerCase() == 'keluar' || jenis.toLowerCase() == 'pengeluaran') {
+        saldoBaru = saldoSekarang + jumlah;
+      } else {
+        saldoBaru = saldoSekarang - jumlah;
+      }
+      await txn.update(
+        'wallets', 
+        {'saldo': saldoBaru}, 
+        where: 'nama = ? AND book_id = ?', 
+        whereArgs: [walletNama, AppData.activeBookId]
+      );
+    }
+  }
+
+  Future<void> _applyWalletBalance(Transaction txn, String walletNama, String jenis, int jumlah) async {
+    final List<Map<String, dynamic>> walletMaps = await txn.query(
+      'wallets',
+      where: 'nama = ? AND book_id = ?',
+      whereArgs: [walletNama, AppData.activeBookId],
+    );
+
+    if (walletMaps.isNotEmpty) {
+      int saldoSekarang = walletMaps.first['saldo'] as int;
+      int saldoBaru;
+      if (jenis.toLowerCase() == 'keluar' || jenis.toLowerCase() == 'pengeluaran') {
+        saldoBaru = saldoSekarang - jumlah;
+      } else {
+        saldoBaru = saldoSekarang + jumlah;
+      }
+      await txn.update(
+        'wallets', 
+        {'saldo': saldoBaru}, 
+        where: 'nama = ? AND book_id = ?', 
+        whereArgs: [walletNama, AppData.activeBookId]
+      );
+    }
+  }
+
   Future<void> deleteTransaksi(Transaksi t) async {
     final db = await database;
     await db.transaction((txn) async {
-      // Reverse the wallet balance
-      final List<Map<String, dynamic>> walletMaps = await txn.query(
-        'wallets',
-        where: 'nama = ? AND book_id = ?',
-        whereArgs: [t.walletNama, AppData.activeBookId],
-      );
-
-      if (walletMaps.isNotEmpty) {
-        int saldoSekarang = walletMaps.first['saldo'] as int;
-        int saldoBaru;
-        if (t.jenis.toLowerCase() == 'keluar' || t.jenis.toLowerCase() == 'pengeluaran') {
-          saldoBaru = saldoSekarang + t.jumlah;
-        } else {
-          saldoBaru = saldoSekarang - t.jumlah;
-        }
-        await txn.update(
-          'wallets', 
-          {'saldo': saldoBaru}, 
-          where: 'nama = ? AND book_id = ?', 
-          whereArgs: [t.walletNama, AppData.activeBookId]
-        );
-      }
-
+      // 1. Dapatkan UUID dan linked UUID dari DB (jika belum ada di objek)
+      String? txUuid = t.uuid;
+      String? linkedUuid = t.transferLinkedUuid;
+      
       final List<Map<String, dynamic>> trMaps = await txn.query(
         'transaksi',
-        columns: ['uuid'],
+        columns: ['uuid', 'transfer_linked_uuid'],
         where: 'id = ?',
         whereArgs: [t.id],
       );
-      String? txUuid = t.uuid;
+      
       if (trMaps.isNotEmpty) {
         txUuid = trMaps.first['uuid'] as String?;
+        linkedUuid = trMaps.first['transfer_linked_uuid'] as String?;
       }
+
+      // 2. Reverse wallet balance transaksi utama
+      await _reverseWalletBalance(txn, t.walletNama, t.jenis, t.jumlah);
+
+      // 3. Catat di deleted_records
       if (txUuid != null && txUuid.isNotEmpty) {
         await txn.insert('deleted_records', {
           'uuid': txUuid,
@@ -564,7 +627,38 @@ class DatabaseHelper {
         });
       }
 
+      // 4. Hapus transaksi utama
       await txn.delete('transaksi', where: 'id = ?', whereArgs: [t.id]);
+
+      // 5. Handle pasangan transfer jika terhubung
+      if (linkedUuid != null && linkedUuid.isNotEmpty) {
+        final List<Map<String, dynamic>> counterparts = await txn.query(
+          'transaksi',
+          where: 'transfer_linked_uuid = ? AND id != ?',
+          whereArgs: [linkedUuid, t.id],
+        );
+        for (var cp in counterparts) {
+          final cpId = cp['id'] as int;
+          final cpUuid = cp['uuid'] as String?;
+          final cpWallet = cp['walletNama'] as String;
+          final cpJenis = cp['jenis'] as String;
+          final cpJumlah = cp['jumlah'] as int;
+
+          // Reverse wallet balance pasangan
+          await _reverseWalletBalance(txn, cpWallet, cpJenis, cpJumlah);
+
+          // Catat di deleted_records
+          if (cpUuid != null && cpUuid.isNotEmpty) {
+            await txn.insert('deleted_records', {
+              'uuid': cpUuid,
+              'deleted_at': DateTime.now().toIso8601String(),
+            });
+          }
+
+          // Hapus pasangan
+          await txn.delete('transaksi', where: 'id = ?', whereArgs: [cpId]);
+        }
+      }
     });
 
     // Trigger pencadangan otomatis senyap di background jika user login
@@ -575,71 +669,64 @@ class DatabaseHelper {
   Future<void> updateTransaksi(Transaksi oldT, Transaksi newT) async {
     final db = await database;
     await db.transaction((txn) async {
-      // 1. Reverse old impact
-      final List<Map<String, dynamic>> oldWalletMaps = await txn.query(
-        'wallets',
-        where: 'nama = ? AND book_id = ?',
-        whereArgs: [oldT.walletNama, AppData.activeBookId],
+      // 1. Dapatkan linked UUID transaksi lama dari DB
+      String? linkedUuid = oldT.transferLinkedUuid;
+      final List<Map<String, dynamic>> trMaps = await txn.query(
+        'transaksi',
+        columns: ['transfer_linked_uuid'],
+        where: 'id = ?',
+        whereArgs: [oldT.id],
       );
-
-      if (oldWalletMaps.isNotEmpty) {
-        int saldoSekarang = oldWalletMaps.first['saldo'] as int;
-        int reversedSaldo;
-        if (oldT.jenis.toLowerCase() == 'keluar' || oldT.jenis.toLowerCase() == 'pengeluaran') {
-          reversedSaldo = saldoSekarang + oldT.jumlah;
-        } else {
-          reversedSaldo = saldoSekarang - oldT.jumlah;
-        }
-        await txn.update(
-          'wallets', 
-          {'saldo': reversedSaldo}, 
-          where: 'nama = ? AND book_id = ?', 
-          whereArgs: [oldT.walletNama, AppData.activeBookId]
-        );
+      if (trMaps.isNotEmpty) {
+        linkedUuid = trMaps.first['transfer_linked_uuid'] as String?;
       }
 
-      // 2. Apply new impact
-      final List<Map<String, dynamic>> newWalletMaps = await txn.query(
-        'wallets',
-        where: 'nama = ? AND book_id = ?',
-        whereArgs: [newT.walletNama, AppData.activeBookId],
-      );
-
-      if (newWalletMaps.isNotEmpty) {
-        int saldoTarget;
-        if (oldT.walletNama == newT.walletNama) {
-          final updatedWallet = await txn.query(
-            'wallets', 
-            where: 'nama = ? AND book_id = ?', 
-            whereArgs: [newT.walletNama, AppData.activeBookId]
-          );
-          saldoTarget = updatedWallet.first['saldo'] as int;
-        } else {
-          saldoTarget = newWalletMaps.first['saldo'] as int;
-        }
-
-        int saldoBaru;
-        if (newT.jenis.toLowerCase() == 'keluar' || newT.jenis.toLowerCase() == 'pengeluaran') {
-          saldoBaru = saldoTarget - newT.jumlah;
-        } else {
-          saldoBaru = saldoTarget + newT.jumlah;
-        }
-        await txn.update(
-          'wallets', 
-          {'saldo': saldoBaru}, 
-          where: 'nama = ? AND book_id = ?', 
-          whereArgs: [newT.walletNama, AppData.activeBookId]
-        );
-      }
+      // 2. Update transaksi utama
+      await _reverseWalletBalance(txn, oldT.walletNama, oldT.jenis, oldT.jumlah);
+      await _applyWalletBalance(txn, newT.walletNama, newT.jenis, newT.jumlah);
 
       Map<String, dynamic> newTMap = newT.toMap();
       newTMap['book_id'] = AppData.activeBookId;
+      newTMap['transfer_linked_uuid'] = linkedUuid; // pastikan tetap terhubung
       await txn.update(
         'transaksi', 
         newTMap, 
         where: 'id = ?', 
         whereArgs: [oldT.id]
       );
+
+      // 3. Update pasangan transfer jika ada
+      if (linkedUuid != null && linkedUuid.isNotEmpty) {
+        final List<Map<String, dynamic>> counterparts = await txn.query(
+          'transaksi',
+          where: 'transfer_linked_uuid = ? AND id != ?',
+          whereArgs: [linkedUuid, oldT.id],
+        );
+        for (var cp in counterparts) {
+          final cpId = cp['id'] as int;
+          final cpWallet = cp['walletNama'] as String;
+          final cpJenis = cp['jenis'] as String;
+          final cpJumlah = cp['jumlah'] as int;
+
+          // Hitung & update saldo lama pasangan
+          await _reverseWalletBalance(txn, cpWallet, cpJenis, cpJumlah);
+          
+          // Terapkan saldo baru pasangan dengan nominal yang baru (newT.jumlah)
+          await _applyWalletBalance(txn, cpWallet, cpJenis, newT.jumlah);
+
+          // Update data pasangan di tabel transaksi (keterangan, jumlah, tanggal)
+          await txn.update(
+            'transaksi',
+            {
+              'jumlah': newT.jumlah,
+              'tanggal': newT.tanggal.toIso8601String(),
+              'keterangan': newT.keterangan,
+            },
+            where: 'id = ?',
+            whereArgs: [cpId],
+          );
+        }
+      }
     });
 
     // Trigger pencadangan otomatis senyap di background jika user login

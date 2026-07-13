@@ -42,6 +42,10 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
   TextEditingController keteranganController = TextEditingController();
   List<TransactionCategory> categories = [];
   DateTime selectedDate = DateTime.now();
+
+  String? _suggestedCategory;
+  String? _suggestedWallet;
+  bool _hasSuggestion = false;
   
   String selectedCurrency = "IDR";
   double usdToIdr = 16000.0;
@@ -132,14 +136,50 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
         if (mounted) _toggleListening();
       });
     }
+
+    keteranganController.addListener(_onKeteranganChanged);
   }
 
   @override
   void dispose() {
     _sttHintTimer?.cancel();
+    keteranganController.removeListener(_onKeteranganChanged);
     keteranganController.dispose();
     _pulseController.dispose();
     super.dispose();
+  }
+
+  void _onKeteranganChanged() async {
+    final query = keteranganController.text.trim();
+    if (query.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _suggestedCategory = null;
+          _suggestedWallet = null;
+          _hasSuggestion = false;
+        });
+      }
+      return;
+    }
+
+    final suggestion = await DatabaseHelper.instance.getSuggestionForDescription(query);
+    if (suggestion != null) {
+      if (mounted) {
+        setState(() {
+          _suggestedCategory = suggestion['kategori'];
+          _suggestedWallet = suggestion['walletNama'];
+          _hasSuggestion = true;
+        });
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          _suggestedCategory = null;
+          _suggestedWallet = null;
+          _hasSuggestion = false;
+        });
+      }
+    }
   }
 
   Future<void> _loadLastRate() async {
@@ -800,6 +840,7 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
       try {
         await DatabaseHelper.instance.updateTransaksi(widget.initialTransaksi!, updated);
         if (mounted) {
+          HapticFeedback.mediumImpact();
           CustomSnackBar.show(context, message: "Transaksi berhasil diperbarui!", isSuccess: true);
           Navigator.pop(context, true);
         }
@@ -950,6 +991,7 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
       }
       
       if (mounted) {
+        HapticFeedback.mediumImpact();
         CustomSnackBar.show(
           context,
           message: "${_queuedTransactions.length} transaksi berhasil disimpan!",
@@ -1315,6 +1357,37 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
                                   ],
                                 ),
                               ),
+                              if (_hasSuggestion && _suggestedCategory != null && _suggestedWallet != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 8.0, left: 4.0, right: 4.0),
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: ActionChip(
+                                      avatar: const Icon(Icons.lightbulb_outline, size: 16, color: Colors.pink),
+                                      backgroundColor: Colors.pink.shade50,
+                                      side: BorderSide(color: Colors.pink.shade100),
+                                      label: Text(
+                                        "Gunakan Kategori: $_suggestedCategory & Dompet: $_suggestedWallet?",
+                                        style: TextStyle(fontSize: 11, color: Colors.pink.shade800, fontWeight: FontWeight.bold),
+                                      ),
+                                      onPressed: () {
+                                        final catMatch = categories.firstWhere(
+                                          (c) => c.nama.toLowerCase() == _suggestedCategory!.toLowerCase(),
+                                          orElse: () => categories.isNotEmpty ? categories.first : categories.first,
+                                        );
+                                        final walletMatch = AppData.wallets.firstWhere(
+                                          (w) => w.nama.toLowerCase() == _suggestedWallet!.toLowerCase(),
+                                          orElse: () => AppData.wallets.isNotEmpty ? AppData.wallets.first : AppData.wallets.first,
+                                        );
+                                        setState(() {
+                                          selectedCategory = catMatch;
+                                          selectedWallet = walletMatch;
+                                          _hasSuggestion = false;
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                ),
                               AnimatedSize(
                                 duration: const Duration(milliseconds: 250),
                                 curve: Curves.easeInOut,

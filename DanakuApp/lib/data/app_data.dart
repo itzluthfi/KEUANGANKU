@@ -105,6 +105,7 @@ class Transaksi {
   final String? receiptPath; // path foto struk di penyimpanan lokal (offline)
   final String? receiptUrl; // URL foto struk di server (online)
   final String? uuid; // UUID untuk sinkronisasi dua arah
+  final String? transferLinkedUuid; // Tautan transfer antar dompet
 
   Transaksi({
     this.id,
@@ -119,6 +120,7 @@ class Transaksi {
     this.receiptPath,
     this.receiptUrl,
     this.uuid,
+    this.transferLinkedUuid,
   });
 
   factory Transaksi.fromMap(Map<String, dynamic> map) {
@@ -135,6 +137,7 @@ class Transaksi {
       receiptPath: map['receipt_path'],
       receiptUrl: map['receipt_url'],
       uuid: map['uuid'],
+      transferLinkedUuid: map['transfer_linked_uuid'],
     );
   }
 
@@ -152,6 +155,7 @@ class Transaksi {
       'receipt_path': receiptPath,
       'receipt_url': receiptUrl,
       'uuid': uuid,
+      'transfer_linked_uuid': transferLinkedUuid,
     };
   }
 
@@ -168,6 +172,7 @@ class Transaksi {
     String? receiptPath,
     String? receiptUrl,
     String? uuid,
+    String? transferLinkedUuid,
   }) {
     return Transaksi(
       id: id ?? this.id,
@@ -182,6 +187,7 @@ class Transaksi {
       receiptPath: receiptPath ?? this.receiptPath,
       receiptUrl: receiptUrl ?? this.receiptUrl,
       uuid: uuid ?? this.uuid,
+      transferLinkedUuid: transferLinkedUuid ?? this.transferLinkedUuid,
     );
   }
 }

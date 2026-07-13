@@ -32,6 +32,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/backup', [BackupController::class, 'backup']);
     Route::get('/restore', [BackupController::class, 'restore']);
     Route::get('/ai/metrics', [AIController::class, 'metrics']);
+    Route::post('/ai/advise', [AIController::class, 'advise']);
     
     // Notifikasi & FCM
     Route::post('/save-fcm-token', [NotificationController::class, 'saveFcmToken']);

@@ -499,7 +499,7 @@ Output must be ONLY a valid JSON object matching the schema. Do not output any m
 6. 'items': An array of objects, where each object represents an item on the receipt and contains:
    - 'nama': The item description or name (string).
    - 'qty': Quantity purchased (integer, default 1 if not readable).
-   - 'harga': Total price for this item (integer, i.e. qty * unit_price). Always positive.
+   - 'harga': Total adjusted price for this item (integer, i.e. (qty * unit_price) adjusted to include its proportional share of any taxes, service charges, and discounts). Always positive. Do NOT include taxes, discounts, or service charges as separate items in this array; instead, distribute them proportionally across the actual items so that the sum of all items' 'harga' values matches the final 'jumlah' perfectly.
    - 'kategori': Choose ONE category from this list matching the item best: {$keluarList}. Default to 'Harian'.
    - 'jenis': 'keluar' by default. Use 'masuk' ONLY for lines that clearly represent money received by the customer, such as refund, cashback, reimbursement, or deposit returned.
 7. 'dompet_asal' and 'dompet_tujuan': ONLY when 'jenis' is 'transfer' — the sender and recipient account/bank/e-wallet names if readable (strings), otherwise null. For transfer proofs: set 'keterangan' like 'Transfer ke <recipient name>', 'kategori' to 'Transfer', and 'items' to an empty array.
@@ -626,5 +626,213 @@ Output must be ONLY a valid JSON object matching the schema. Do not output any m
         } catch (\Exception $e) {
             Log::error("Failed to save api log: " . $e->getMessage());
         }
+    }
+
+    public function advise(Request $request)
+    {
+        $request->validate([
+            'total_pemasukan' => 'required|numeric',
+            'total_pengeluaran' => 'required|numeric',
+            'kategori_breakdown' => 'required|array',
+        ]);
+
+        $in = number_format($request->total_pemasukan, 0, ',', '.');
+        $out = number_format($request->total_pengeluaran, 0, ',', '.');
+        $net = number_format($request->total_pemasukan - $request->total_pengeluaran, 0, ',', '.');
+
+        $breakdownStr = "";
+        foreach ($request->kategori_breakdown as $cat => $val) {
+            $breakdownStr .= "- $cat: Rp " . number_format($val, 0, ',', '.') . "\n";
+        }
+
+        $prompt = "Anda adalah \"Danaku AI Advisor\", asisten perencana keuangan pribadi yang bijak, cerdas, dan ramah.\n"
+            . "Analisis data keuangan pengguna berikut untuk bulan ini:\n"
+            . "- Total Pemasukan: Rp $in\n"
+            . "- Total Pengeluaran: Rp $out\n"
+            . "- Tabungan Bersih (Selisih): Rp $net\n"
+            . "- Rincian Pengeluaran per Kategori:\n$breakdownStr\n\n"
+            . "Berikan ulasan dan saran keuangan dalam format Markdown terstruktur yang berisi:\n"
+            . "1. Ringkasan singkat kesehatan keuangan bulan ini.\n"
+            . "2. Analisis Kategori Pengeluaran (kategori mana yang terlalu boros atau perlu diwaspadai).\n"
+            . "3. 3 Saran Praktis dan konkret untuk menghemat atau berinvestasi bulan depan.\n"
+            . "Gunakan nada bicara yang menyemangati, bersahabat, ramah, dan profesional. Jangan gunakan bahasa yang terlalu kaku.";
+
+        $startTime = microtime(true);
+
+        // Fallback pipeline: Gemini -> Cerebras -> Groq -> Cloudflare -> Nvidia
+        
+        // 1. Gemini
+        try {
+            $advice = $this->callGeminiChat($prompt);
+            $latency = (microtime(true) - $startTime) * 1000;
+            $this->logUsage('advisor', 'gemini', 'gemini-2.5-flash', 'success', strlen($prompt) + strlen($advice), $latency, null, $advice);
+            return response()->json(['advice' => $advice, 'provider' => 'Gemini']);
+        } catch (\Exception $e) {
+            $latency = (microtime(true) - $startTime) * 1000;
+            $this->logUsage('advisor', 'gemini', 'gemini-2.5-flash', 'failed', strlen($prompt), $latency, $e->getMessage());
+            Log::warning("Gemini Advisor failed: " . $e->getMessage());
+        }
+
+        // 2. Cerebras
+        $startTime = microtime(true);
+        try {
+            $advice = $this->callCerebrasChat($prompt);
+            $latency = (microtime(true) - $startTime) * 1000;
+            $this->logUsage('advisor', 'cerebras', 'llama3.1-8b', 'success', strlen($prompt) + strlen($advice), $latency, null, $advice);
+            return response()->json(['advice' => $advice, 'provider' => 'Cerebras']);
+        } catch (\Exception $e) {
+            $latency = (microtime(true) - $startTime) * 1000;
+            $this->logUsage('advisor', 'cerebras', 'llama3.1-8b', 'failed', strlen($prompt), $latency, $e->getMessage());
+            Log::warning("Cerebras Advisor failed: " . $e->getMessage());
+        }
+
+        // 3. Groq
+        $startTime = microtime(true);
+        try {
+            $advice = $this->callGroqChat($prompt);
+            $latency = (microtime(true) - $startTime) * 1000;
+            $this->logUsage('advisor', 'groq', 'llama-3.3-70b-versatile', 'success', strlen($prompt) + strlen($advice), $latency, null, $advice);
+            return response()->json(['advice' => $advice, 'provider' => 'Groq']);
+        } catch (\Exception $e) {
+            $latency = (microtime(true) - $startTime) * 1000;
+            $this->logUsage('advisor', 'groq', 'llama-3.3-70b-versatile', 'failed', strlen($prompt), $latency, $e->getMessage());
+            Log::warning("Groq Advisor failed: " . $e->getMessage());
+        }
+
+        // 4. Cloudflare
+        $startTime = microtime(true);
+        try {
+            $advice = $this->callCloudflareChat($prompt);
+            $latency = (microtime(true) - $startTime) * 1000;
+            $this->logUsage('advisor', 'cloudflare', 'llama-3-8b-instruct', 'success', strlen($prompt) + strlen($advice), $latency, null, $advice);
+            return response()->json(['advice' => $advice, 'provider' => 'Cloudflare']);
+        } catch (\Exception $e) {
+            $latency = (microtime(true) - $startTime) * 1000;
+            $this->logUsage('advisor', 'cloudflare', 'llama-3-8b-instruct', 'failed', strlen($prompt), $latency, $e->getMessage());
+            Log::warning("Cloudflare Advisor failed: " . $e->getMessage());
+        }
+
+        // 5. Nvidia
+        $startTime = microtime(true);
+        try {
+            $advice = $this->callNvidiaChat($prompt);
+            $latency = (microtime(true) - $startTime) * 1000;
+            $this->logUsage('advisor', 'nvidia', 'llama-3.1-8b-instruct', 'success', strlen($prompt) + strlen($advice), $latency, null, $advice);
+            return response()->json(['advice' => $advice, 'provider' => 'Nvidia']);
+        } catch (\Exception $e) {
+            $latency = (microtime(true) - $startTime) * 1000;
+            $this->logUsage('advisor', 'nvidia', 'llama-3.1-8b-instruct', 'failed', strlen($prompt), $latency, $e->getMessage());
+            Log::warning("Nvidia Advisor failed: " . $e->getMessage());
+        }
+
+        return response()->json(['message' => 'Seluruh layanan AI advisor sedang tidak dapat diakses saat ini. Silakan coba lagi nanti.'], 503);
+    }
+
+    private function callGeminiChat($prompt)
+    {
+        $apiKey = env('GEMINI_API_KEY');
+        if (empty($apiKey)) throw new \Exception("Gemini API key is empty.");
+
+        $response = Http::post("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={$apiKey}", [
+            'contents' => [
+                'parts' => [
+                    ['text' => $prompt]
+                ]
+            ]
+        ]);
+
+        if ($response->failed()) {
+            throw new \Exception("Gemini API HTTP Error: " . $response->body());
+        }
+
+        return $response->json('candidates.0.content.parts.0.text') ?? '';
+    }
+
+    private function callCerebrasChat($prompt)
+    {
+        $apiKey = env('CEREBRAS_API_KEY');
+        if (empty($apiKey)) throw new \Exception("Cerebras API key is empty.");
+
+        $response = Http::withHeaders([
+            'Authorization' => "Bearer {$apiKey}",
+            'Content-Type' => 'application/json'
+        ])->post("https://api.cerebras.ai/v1/chat/completions", [
+            'model' => 'llama3.1-8b',
+            'messages' => [
+                ['role' => 'user', 'content' => $prompt]
+            ]
+        ]);
+
+        if ($response->failed()) {
+            throw new \Exception("Cerebras API HTTP Error: " . $response->body());
+        }
+
+        return $response->json('choices.0.message.content') ?? '';
+    }
+
+    private function callGroqChat($prompt)
+    {
+        $apiKey = env('GROQ_API_KEY');
+        if (empty($apiKey)) throw new \Exception("Groq API key is empty.");
+
+        $response = Http::withHeaders([
+            'Authorization' => "Bearer {$apiKey}",
+            'Content-Type' => 'application/json'
+        ])->post("https://api.groq.com/openai/v1/chat/completions", [
+            'model' => 'llama-3.3-70b-versatile',
+            'messages' => [
+                ['role' => 'user', 'content' => $prompt]
+            ]
+        ]);
+
+        if ($response->failed()) {
+            throw new \Exception("Groq API HTTP Error: " . $response->body());
+        }
+
+        return $response->json('choices.0.message.content') ?? '';
+    }
+
+    private function callCloudflareChat($prompt)
+    {
+        $token = env('CLOUDFLARE_API_TOKEN');
+        $accountId = env('CLOUDFLARE_ACCOUNT_ID', '16f22dcaab808c268f70f1118b062ab5');
+        if (empty($token)) throw new \Exception("Cloudflare API token is empty.");
+
+        $response = Http::withHeaders([
+            'Authorization' => "Bearer {$token}",
+            'Content-Type' => 'application/json'
+        ])->post("https://api.cloudflare.com/client/v4/accounts/{$accountId}/ai/run/@cf/meta/llama-3-8b-instruct", [
+            'messages' => [
+                ['role' => 'user', 'content' => $prompt]
+            ]
+        ]);
+
+        if ($response->failed()) {
+            throw new \Exception("Cloudflare API HTTP Error: " . $response->body());
+        }
+
+        return $response->json('result.response') ?? '';
+    }
+
+    private function callNvidiaChat($prompt)
+    {
+        $apiKey = env('NVIDIA_API_KEY');
+        if (empty($apiKey)) throw new \Exception("Nvidia API key is empty.");
+
+        $response = Http::withHeaders([
+            'Authorization' => "Bearer {$apiKey}",
+            'Content-Type' => 'application/json'
+        ])->post("https://integrate.api.nvidia.com/v1/chat/completions", [
+            'model' => 'meta/llama-3.1-8b-instruct',
+            'messages' => [
+                ['role' => 'user', 'content' => $prompt]
+            ]
+        ]);
+
+        if ($response->failed()) {
+            throw new \Exception("Nvidia API HTTP Error: " . $response->body());
+        }
+
+        return $response->json('choices.0.message.content') ?? '';
     }
 }

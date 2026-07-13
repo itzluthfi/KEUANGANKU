@@ -22,6 +22,7 @@ import 'package:lottie/lottie.dart';
 import 'category_budget_page.dart';
 import 'debts_page.dart';
 import 'goals_page.dart';
+import 'ai_advisor_page.dart';
 
 class SettingPage extends StatefulWidget {
   const SettingPage({super.key});
@@ -1330,6 +1331,13 @@ class _SettingPageState extends State<SettingPage> {
                     label: "Target Tabungan",
                     onTap: () {
                       Navigator.push(context, MaterialPageRoute(builder: (context) => const GoalsPage()));
+                    },
+                  ),
+                  GridMenuItem(
+                    icon: Icons.psychology_outlined,
+                    label: "AI Advisor",
+                    onTap: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const AiAdvisorPage()));
                     },
                   ),
                   GridMenuItem(
