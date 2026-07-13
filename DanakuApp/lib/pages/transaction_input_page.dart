@@ -2015,6 +2015,7 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
                                 message: "${items.length} item struk berhasil dimasukkan ke antrean!",
                                 isSuccess: true,
                               );
+                              _showQueueManager();
                             },
                             child: const Text("Pecah Transaksi", style: TextStyle(color: Colors.pink, fontWeight: FontWeight.bold)),
                           ),

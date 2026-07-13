@@ -123,10 +123,12 @@ class AdminController extends Controller
     public function aiMonitoring()
     {
         // 📊 1. Statistik Kuota Harian (Batas Kuota)
-        // Gemini: 1500 request/hari, Groq: 14400/hari, Nvidia: 1000/hari
+        // Gemini: 1500 request/hari, Cerebras: 14400/hari, Groq: 14400/hari, Cloudflare: 10000/hari, Nvidia: 1000/hari
         $limits = [
             'gemini' => 1500,
+            'cerebras' => 14400,
             'groq' => 14400,
+            'cloudflare' => 10000,
             'nvidia' => 1000
         ];
 
@@ -134,26 +136,32 @@ class AdminController extends Controller
 
         $usageToday = [
             'gemini' => $todayLogs->where('provider', 'gemini')->count(),
+            'cerebras' => $todayLogs->where('provider', 'cerebras')->count(),
             'groq' => $todayLogs->where('provider', 'groq')->count(),
+            'cloudflare' => $todayLogs->where('provider', 'cloudflare')->count(),
             'nvidia' => $todayLogs->where('provider', 'nvidia')->count()
         ];
 
         $remainingQuota = [
             'gemini' => max(0, $limits['gemini'] - $usageToday['gemini']),
+            'cerebras' => max(0, $limits['cerebras'] - $usageToday['cerebras']),
             'groq' => max(0, $limits['groq'] - $usageToday['groq']),
+            'cloudflare' => max(0, $limits['cloudflare'] - $usageToday['cloudflare']),
             'nvidia' => max(0, $limits['nvidia'] - $usageToday['nvidia'])
         ];
 
         // 📈 2. Latency rata-rata per provider (ms)
         $latencyAvg = [
             'gemini' => (int) ApiLog::where('provider', 'gemini')->where('status', 'success')->avg('latency_ms'),
+            'cerebras' => (int) ApiLog::where('provider', 'cerebras')->where('status', 'success')->avg('latency_ms'),
             'groq' => (int) ApiLog::where('provider', 'groq')->where('status', 'success')->avg('latency_ms'),
+            'cloudflare' => (int) ApiLog::where('provider', 'cloudflare')->where('status', 'success')->avg('latency_ms'),
             'nvidia' => (int) ApiLog::where('provider', 'nvidia')->where('status', 'success')->avg('latency_ms')
         ];
 
         // 🎯 3. Success Rate per provider (%)
         $successRate = [];
-        foreach (['gemini', 'groq', 'nvidia'] as $prov) {
+        foreach (['gemini', 'cerebras', 'groq', 'cloudflare', 'nvidia'] as $prov) {
             $total = ApiLog::where('provider', $prov)->count();
             if ($total > 0) {
                 $success = ApiLog::where('provider', $prov)->where('status', 'success')->count();

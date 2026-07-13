@@ -106,7 +106,9 @@
         color: white;
     }
     .provider-gemini { background-color: #E24C80; }
+    .provider-cerebras { background-color: #9B59B6; }
     .provider-groq { background-color: #4A90E2; }
+    .provider-cloudflare { background-color: #F38020; }
     .provider-nvidia { background-color: #2ECC71; }
     
     /* Token Usage Summary */
@@ -263,6 +265,28 @@
         </div>
     </div>
 
+    <!-- Cerebras -->
+    <div class="quota-card">
+        <div class="quota-header">
+            <span class="quota-name">Cerebras Llama 3.1</span>
+            <span class="provider-pill provider-cerebras">Limit Harian</span>
+        </div>
+        <div style="font-size:22px; font-weight:800; margin-bottom:10px;">
+            {{ $usageToday['cerebras'] }} <span style="font-size:13px; color:#aaa; font-weight:600;">/ {{ $limits['cerebras'] }} Req</span>
+        </div>
+        @php
+            $cerebrasPercent = min(100, ($usageToday['cerebras'] / $limits['cerebras']) * 100);
+            $cerebrasColor = $cerebrasPercent > 80 ? '#D32F2F' : ($cerebrasPercent > 50 ? '#F57C00' : '#9B59B6');
+        @endphp
+        <div class="quota-bar-bg">
+            <div class="quota-bar-fill" style="width: {{ $cerebrasPercent }}%; background: {{ $cerebrasColor }};"></div>
+        </div>
+        <div class="quota-footer">
+            <span>Sisa Kuota: {{ number_format($remainingQuota['cerebras']) }}</span>
+            <span>Speed: {{ $latencyAvg['cerebras'] }} ms</span>
+        </div>
+    </div>
+
     <!-- Groq -->
     <div class="quota-card">
         <div class="quota-header">
@@ -282,6 +306,28 @@
         <div class="quota-footer">
             <span>Sisa Kuota: {{ number_format($remainingQuota['groq']) }}</span>
             <span>Speed: {{ $latencyAvg['groq'] }} ms</span>
+        </div>
+    </div>
+
+    <!-- Cloudflare -->
+    <div class="quota-card">
+        <div class="quota-header">
+            <span class="quota-name">Cloudflare Llama 3.1</span>
+            <span class="provider-pill provider-cloudflare">Limit Harian</span>
+        </div>
+        <div style="font-size:22px; font-weight:800; margin-bottom:10px;">
+            {{ $usageToday['cloudflare'] }} <span style="font-size:13px; color:#aaa; font-weight:600;">/ {{ $limits['cloudflare'] }} Req</span>
+        </div>
+        @php
+            $cloudflarePercent = min(100, ($usageToday['cloudflare'] / $limits['cloudflare']) * 100);
+            $cloudflareColor = $cloudflarePercent > 80 ? '#D32F2F' : ($cloudflarePercent > 50 ? '#F57C00' : '#F38020');
+        @endphp
+        <div class="quota-bar-bg">
+            <div class="quota-bar-fill" style="width: {{ $cloudflarePercent }}%; background: {{ $cloudflareColor }};"></div>
+        </div>
+        <div class="quota-footer">
+            <span>Sisa Kuota: {{ number_format($remainingQuota['cloudflare']) }}</span>
+            <span>Speed: {{ $latencyAvg['cloudflare'] }} ms</span>
         </div>
     </div>
 
