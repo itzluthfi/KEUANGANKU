@@ -53,4 +53,26 @@ class AuthController extends Controller
             'email' => $user->email
         ], 200);
     }
+
+    public function deleteAccount(Request $request)
+    {
+        $user = $request->user();
+        
+        // Hapus data backup awan
+        \App\Models\Backup::where('user_id', $user->id)->delete();
+        
+        // Hapus logs panggilan AI
+        \App\Models\ApiLog::where('user_id', $user->id)->delete();
+        
+        // Hapus token-token Sanctum
+        $user->tokens()->delete();
+        
+        // Hapus user secara permanen
+        $user->delete();
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Akun dan seluruh data Anda telah dihapus secara permanen dari server Awan Danaku.'
+        ]);
+    }
 }

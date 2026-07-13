@@ -29,6 +29,7 @@ Route::middleware([CheckApiKey::class, 'throttle:20,1'])->group(function () {
 
 // Rute Privat (Wajib menyertakan Bearer Token Sanctum di Header HTTP)
 Route::middleware('auth:sanctum')->group(function () {
+    Route::delete('/user/delete-account', [AuthController::class, 'deleteAccount']);
     Route::post('/backup', [BackupController::class, 'backup']);
     Route::get('/restore', [BackupController::class, 'restore']);
     Route::get('/ai/metrics', [AIController::class, 'metrics']);

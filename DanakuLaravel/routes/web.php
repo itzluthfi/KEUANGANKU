@@ -5,6 +5,9 @@ use App\Http\Controllers\AdminController;
 
 // 1. Landing Page
 Route::get('/', [AdminController::class, 'index'])->name('landing');
+Route::get('/privacy-policy', function () {
+    return view('privacy_policy');
+})->name('privacy-policy');
 
 // 2. Authentication Admin
 Route::get('/login', [AdminController::class, 'showLogin'])->name('login');

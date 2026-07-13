@@ -24,6 +24,8 @@ import 'debts_page.dart';
 import 'goals_page.dart';
 import 'ai_advisor_page.dart';
 import 'financial_calendar_page.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:http/http.dart' as http;
 
 class SettingPage extends StatefulWidget {
   const SettingPage({super.key});
@@ -319,6 +321,72 @@ class _SettingPageState extends State<SettingPage> {
       _checkLoginStatus();
       if (mounted) {
         CustomSnackBar.show(context, message: "Sambungan awan diputuskan.");
+      }
+    }
+  }
+
+  void _handleDeleteAccount() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text("Hapus Akun & Data Awan?", style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Outfit')),
+        content: const Text(
+          "Tindakan ini akan menghapus akun Awan Danaku dan seluruh data cadangan Anda secara permanen dari server. Data transaksi lokal di HP Anda tidak akan terhapus.",
+          style: TextStyle(fontFamily: 'Outfit'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Batal", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold, fontFamily: 'Outfit')),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Hapus Permanen", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontFamily: 'Outfit')),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator(color: Colors.pink)),
+      );
+
+      try {
+        final token = await DatabaseHelper.instance.getSetting('auth_token');
+        final response = await http.delete(
+          Uri.parse('${SyncService.instance.laravelBaseUrl}/user/delete-account'),
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+        );
+
+        if (mounted) Navigator.pop(context); // Tutup loading
+
+        if (response.statusCode == 200) {
+          await DatabaseHelper.instance.deleteSetting('auth_token');
+          await DatabaseHelper.instance.deleteSetting('logged_in_email');
+          _checkLoginStatus();
+          
+          if (mounted) {
+            CustomSnackBar.show(context, message: "Akun Awan berhasil dihapus secara permanen.", isSuccess: true);
+          }
+        } else {
+          throw Exception("Gagal menghapus akun. Kode status: ${response.statusCode}");
+        }
+      } catch (e) {
+        if (mounted) {
+          Navigator.pop(context); // Tutup loading jika error terjadi
+          CustomSnackBar.show(context, message: e.toString().replaceAll("Exception: ", ""), isError: true);
+        }
       }
     }
   }
@@ -1091,8 +1159,17 @@ class _SettingPageState extends State<SettingPage> {
         ),
         actions: [
           TextButton(
+            onPressed: () async {
+              final url = Uri.parse('${SyncService.instance.laravelBaseUrl}/privacy-policy');
+              if (await canLaunchUrl(url)) {
+                await launchUrl(url, mode: LaunchMode.externalApplication);
+              }
+            },
+            child: const Text("Kebijakan Privasi", style: TextStyle(color: Color(0xFFFF528F), fontWeight: FontWeight.bold)),
+          ),
+          TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Tutup", style: TextStyle(color: Color(0xFFFF528F), fontWeight: FontWeight.bold)),
+            child: const Text("Tutup", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -1642,53 +1719,72 @@ class _SettingPageState extends State<SettingPage> {
                           ),
                         ),
                       )
-                    : Row(
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Expanded(
-                            child: SizedBox(
-                              height: 44,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.white.withOpacity(0.2),
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  side: const BorderSide(color: Colors.white, width: 1.5),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                ),
-                                onPressed: _triggerBackup,
-                                child: const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.cloud_upload, size: 18),
-                                    SizedBox(width: 8),
-                                    Text("Cadangkan", style: TextStyle(fontWeight: FontWeight.bold)),
-                                  ],
+                          Row(
+                            children: [
+                              Expanded(
+                                child: SizedBox(
+                                  height: 44,
+                                  child: ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.white.withValues(alpha: 0.2),
+                                      foregroundColor: Colors.white,
+                                      elevation: 0,
+                                      side: const BorderSide(color: Colors.white, width: 1.5),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                    ),
+                                    onPressed: _triggerBackup,
+                                    child: const Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.cloud_upload, size: 18),
+                                        SizedBox(width: 8),
+                                        Text("Cadangkan", style: TextStyle(fontWeight: FontWeight.bold)),
+                                      ],
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: SizedBox(
+                                  height: 44,
+                                  child: ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.white,
+                                      foregroundColor: Colors.pink.shade700,
+                                      elevation: 1,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                    ),
+                                    onPressed: _triggerRestore,
+                                    child: const Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.cloud_download, size: 18),
+                                        SizedBox(width: 8),
+                                        Text("Pulihkan", style: TextStyle(fontWeight: FontWeight.bold)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: SizedBox(
-                              height: 44,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.white,
-                                  foregroundColor: Colors.pink.shade700,
-                                  elevation: 1,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                ),
-                                onPressed: _triggerRestore,
-                                child: const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.cloud_download, size: 18),
-                                    SizedBox(width: 8),
-                                    Text("Pulihkan", style: TextStyle(fontWeight: FontWeight.bold)),
-                                  ],
-                                ),
-                              ),
+                          const SizedBox(height: 8),
+                          TextButton.icon(
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.white70,
+                              padding: EdgeInsets.zero,
+                              minimumSize: const Size(0, 30),
                             ),
+                            icon: const Icon(Icons.delete_forever_rounded, color: Colors.white70, size: 16),
+                            label: const Text(
+                              "Hapus Akun Awan",
+                              style: TextStyle(color: Colors.white70, fontSize: 11, decoration: TextDecoration.underline, fontFamily: 'Outfit'),
+                            ),
+                            onPressed: _handleDeleteAccount,
                           ),
                         ],
                       ),
@@ -2109,6 +2205,21 @@ class _LoginBottomSheetState extends State<_LoginBottomSheet> {
                         ? "Belum memiliki akun Awan? Daftar Sekarang"
                         : "Sudah memiliki akun Awan? Masuk Sekarang",
                     style: const TextStyle(color: Color(0xFFFF528F), fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                ),
+              ),
+              const Divider(height: 20),
+              Center(
+                child: TextButton(
+                  onPressed: () async {
+                    final url = Uri.parse('${SyncService.instance.laravelBaseUrl}/privacy-policy');
+                    if (await canLaunchUrl(url)) {
+                      await launchUrl(url, mode: LaunchMode.externalApplication);
+                    }
+                  },
+                  child: const Text(
+                    "Kebijakan Privasi Danaku",
+                    style: TextStyle(color: Colors.grey, fontSize: 11, decoration: TextDecoration.underline),
                   ),
                 ),
               ),
