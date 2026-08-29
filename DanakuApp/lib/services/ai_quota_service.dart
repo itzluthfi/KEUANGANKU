@@ -9,7 +9,7 @@ class AiQuotaService {
   AiQuotaService._init();
 
   static const int defaultDailyFreeQuota = 5;
-  static const int rewardBonusQuota = 5;
+  static const int rewardBonusQuota = 3;
 
   /// Mengambil sisa kuota AI hari ini. Otomatis reset ke 5 setiap pergantian tanggal (tengah malam).
   Future<int> getRemainingQuota() async {
@@ -38,7 +38,7 @@ class AiQuotaService {
     return false;
   }
 
-  /// Menambahkan bonus kuota setelah menonton video iklan berhadiah (+5)
+  /// Menambahkan bonus kuota setelah menonton video iklan berhadiah (+3)
   Future<int> addBonusQuota({int amount = rewardBonusQuota}) async {
     final current = await getRemainingQuota();
     final newQuota = current + amount;
@@ -95,7 +95,7 @@ class AiQuotaService {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.pink.shade50.withOpacity(0.5),
+                color: Colors.pink.shade50.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: Colors.pink.shade100),
               ),
@@ -105,7 +105,7 @@ class AiQuotaService {
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      "Tonton video singkat (15–30 dtk) untuk mendapatkan +5 Kuota AI Tambahan!",
+                      "Tonton video singkat (15–30 dtk) untuk mendapatkan +3 Kuota AI Tambahan!",
                       style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.pink, fontFamily: 'Outfit'),
                     ),
                   ),
@@ -132,7 +132,7 @@ class AiQuotaService {
             ),
             icon: const Icon(Icons.play_circle_filled_rounded, size: 18),
             label: const Text(
-              "Tonton Video (+5)",
+              "Tonton Video (+3)",
               style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Outfit'),
             ),
             onPressed: () => Navigator.pop(ctx, true),
@@ -149,7 +149,7 @@ class AiQuotaService {
           if (context.mounted) {
             CustomSnackBar.show(
               context,
-              message: "Selamat! +$rewardBonusQuota Kuota Scan AI berhasil ditambahkan. (Sisa: $newTotal)",
+              message: "Selamat! +$rewardBonusQuota Kuota AI berhasil ditambahkan. (Sisa: $newTotal)",
               isSuccess: true,
             );
           }
@@ -157,8 +157,6 @@ class AiQuotaService {
         },
       );
       return success;
-    }
-
     return false;
   }
 }
