@@ -28,7 +28,7 @@ class _NotificationInboxPageState extends State<NotificationInboxPage> {
 
     try {
       final token = await DatabaseHelper.instance.getSetting('auth_token');
-      if (token == null) {
+      if (token == null || token.isEmpty) {
         setState(() {
           _notifications = [];
           _isLoading = false;
@@ -40,46 +40,60 @@ class _NotificationInboxPageState extends State<NotificationInboxPage> {
         Uri.parse('${SyncService.instance.laravelBaseUrl}/notifications'),
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
           'Authorization': 'Bearer $token',
         },
       );
 
       if (response.statusCode == 200) {
-        final resData = jsonDecode(response.body);
-        setState(() {
-          _notifications = resData['data']['data'] ?? [];
-        });
+        try {
+          final resData = jsonDecode(response.body);
+          if (mounted) {
+            setState(() {
+              _notifications = resData['data']?['data'] ?? [];
+            });
+          }
+        } catch (_) {
+          if (mounted) setState(() => _notifications = []);
+        }
+      } else if (response.statusCode == 401) {
+        // Sesi login berakhir
+        if (mounted) setState(() => _notifications = []);
       } else {
         if (mounted) {
           CustomSnackBar.show(
             context,
-            message: "Gagal mengambil data notifikasi dari awan.",
+            message: "Tidak dapat memuat riwayat notifikasi dari server.",
             isError: true,
           );
         }
       }
     } catch (e) {
+      debugPrint("Notification load error: $e");
       if (mounted) {
         CustomSnackBar.show(
           context,
-          message: "Kesalahan koneksi: $e",
+          message: "Koneksi internet bermasalah saat memuat notifikasi.",
           isError: true,
         );
       }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   Future<void> _markAsRead(int id) async {
     try {
       final token = await DatabaseHelper.instance.getSetting('auth_token');
-      if (token == null) return;
+      if (token == null || token.isEmpty) return;
 
       final response = await http.post(
         Uri.parse('${SyncService.instance.laravelBaseUrl}/notifications/$id/read'),
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
           'Authorization': 'Bearer $token',
         },
       );
@@ -97,11 +111,11 @@ class _NotificationInboxPageState extends State<NotificationInboxPage> {
 
     try {
       final token = await DatabaseHelper.instance.getSetting('auth_token');
-      if (token == null) {
+      if (token == null || token.isEmpty) {
         if (mounted) {
           CustomSnackBar.show(
             context,
-            message: "Silakan login terlebih dahulu untuk mencoba fitur ini.",
+            message: "Silakan masuk ke akun Awan terlebih dahulu untuk mencoba fitur ini.",
             isError: true,
           );
         }
@@ -112,6 +126,7 @@ class _NotificationInboxPageState extends State<NotificationInboxPage> {
         Uri.parse('${SyncService.instance.laravelBaseUrl}/notifications/test'),
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
           'Authorization': 'Bearer $token',
         },
         body: jsonEncode({
@@ -134,21 +149,24 @@ class _NotificationInboxPageState extends State<NotificationInboxPage> {
         if (mounted) {
           CustomSnackBar.show(
             context,
-            message: "Gagal memicu simulasi notifikasi.",
+            message: "Gagal mengirim simulasi notifikasi dari server.",
             isError: true,
           );
         }
       }
     } catch (e) {
+      debugPrint("Error sending test notification: $e");
       if (mounted) {
         CustomSnackBar.show(
           context,
-          message: "Koneksi gagal: $e",
+          message: "Koneksi gagal saat menghubungi server.",
           isError: true,
         );
       }
     } finally {
-      setState(() => _isSendingTest = false);
+      if (mounted) {
+        setState(() => _isSendingTest = false);
+      }
     }
   }
 
