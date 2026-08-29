@@ -25,7 +25,7 @@ class AIController extends Controller
         $text = $request->text;
         $startTime = microtime(true);
 
-        // Fallback: Gemini -> Cerebras -> Groq -> Cloudflare -> Nvidia
+        // Fallback: Gemini -> Groq -> Cerebras -> Cloudflare -> Nvidia
         
         // 1. Gemini
         try {
@@ -39,7 +39,20 @@ class AIController extends Controller
             Log::warning("Gemini parseText failed: " . $e->getMessage());
         }
 
-        // 2. Cerebras
+        // 2. Groq
+        $startTime = microtime(true);
+        try {
+            $data = $this->callGroqParseText($text);
+            $latency = (microtime(true) - $startTime) * 1000;
+            $this->logUsage('stt', 'groq', 'openai/gpt-oss-120b', 'success', strlen($text) + strlen(json_encode($data)), $latency, null, json_encode($data));
+            return response()->json($data);
+        } catch (\Exception $e) {
+            $latency = (microtime(true) - $startTime) * 1000;
+            $this->logUsage('stt', 'groq', 'openai/gpt-oss-120b', 'failed', strlen($text), $latency, $e->getMessage());
+            Log::warning("Groq parseText failed: " . $e->getMessage());
+        }
+
+        // 3. Cerebras
         $startTime = microtime(true);
         try {
             $data = $this->callCerebrasParseText($text);
@@ -50,19 +63,6 @@ class AIController extends Controller
             $latency = (microtime(true) - $startTime) * 1000;
             $this->logUsage('stt', 'cerebras', 'gemma-4-31b', 'failed', strlen($text), $latency, $e->getMessage());
             Log::warning("Cerebras parseText failed: " . $e->getMessage());
-        }
-
-        // 3. Groq
-        $startTime = microtime(true);
-        try {
-            $data = $this->callGroqParseText($text);
-            $latency = (microtime(true) - $startTime) * 1000;
-            $this->logUsage('stt', 'groq', 'qwen-2.5-32b', 'success', strlen($text) + strlen(json_encode($data)), $latency, null, json_encode($data));
-            return response()->json($data);
-        } catch (\Exception $e) {
-            $latency = (microtime(true) - $startTime) * 1000;
-            $this->logUsage('stt', 'groq', 'qwen-2.5-32b', 'failed', strlen($text), $latency, $e->getMessage());
-            Log::warning("Groq parseText failed: " . $e->getMessage());
         }
 
         // 4. Cloudflare
@@ -243,7 +243,7 @@ class AIController extends Controller
             'Authorization' => "Bearer {$apiKey}",
             'Content-Type' => 'application/json',
         ])->post("https://api.groq.com/openai/v1/chat/completions", [
-            'model' => 'llama-3.3-70b-versatile',
+            'model' => 'openai/gpt-oss-120b',
             'messages' => [
                 ['role' => 'user', 'content' => $prompt]
             ],
@@ -659,7 +659,7 @@ Output must be ONLY a valid JSON object matching the schema. Do not output any m
 
         $startTime = microtime(true);
 
-        // Fallback pipeline: Gemini -> Cerebras -> Groq -> Cloudflare -> Nvidia
+        // Fallback pipeline: Gemini -> Groq -> Cerebras -> Cloudflare -> Nvidia
         
         // 1. Gemini
         try {
@@ -673,30 +673,30 @@ Output must be ONLY a valid JSON object matching the schema. Do not output any m
             Log::warning("Gemini Advisor failed: " . $e->getMessage());
         }
 
-        // 2. Cerebras
-        $startTime = microtime(true);
-        try {
-            $advice = $this->callCerebrasChat($prompt);
-            $latency = (microtime(true) - $startTime) * 1000;
-            $this->logUsage('advisor', 'cerebras', 'llama3.1-8b', 'success', strlen($prompt) + strlen($advice), $latency, null, $advice);
-            return response()->json(['advice' => $advice, 'provider' => 'Cerebras']);
-        } catch (\Exception $e) {
-            $latency = (microtime(true) - $startTime) * 1000;
-            $this->logUsage('advisor', 'cerebras', 'llama3.1-8b', 'failed', strlen($prompt), $latency, $e->getMessage());
-            Log::warning("Cerebras Advisor failed: " . $e->getMessage());
-        }
-
-        // 3. Groq
+        // 2. Groq
         $startTime = microtime(true);
         try {
             $advice = $this->callGroqChat($prompt);
             $latency = (microtime(true) - $startTime) * 1000;
-            $this->logUsage('advisor', 'groq', 'llama-3.3-70b-versatile', 'success', strlen($prompt) + strlen($advice), $latency, null, $advice);
+            $this->logUsage('advisor', 'groq', 'openai/gpt-oss-120b', 'success', strlen($prompt) + strlen($advice), $latency, null, $advice);
             return response()->json(['advice' => $advice, 'provider' => 'Groq']);
         } catch (\Exception $e) {
             $latency = (microtime(true) - $startTime) * 1000;
-            $this->logUsage('advisor', 'groq', 'llama-3.3-70b-versatile', 'failed', strlen($prompt), $latency, $e->getMessage());
+            $this->logUsage('advisor', 'groq', 'openai/gpt-oss-120b', 'failed', strlen($prompt), $latency, $e->getMessage());
             Log::warning("Groq Advisor failed: " . $e->getMessage());
+        }
+
+        // 3. Cerebras
+        $startTime = microtime(true);
+        try {
+            $advice = $this->callCerebrasChat($prompt);
+            $latency = (microtime(true) - $startTime) * 1000;
+            $this->logUsage('advisor', 'cerebras', 'gemma-4-31b', 'success', strlen($prompt) + strlen($advice), $latency, null, $advice);
+            return response()->json(['advice' => $advice, 'provider' => 'Cerebras']);
+        } catch (\Exception $e) {
+            $latency = (microtime(true) - $startTime) * 1000;
+            $this->logUsage('advisor', 'cerebras', 'gemma-4-31b', 'failed', strlen($prompt), $latency, $e->getMessage());
+            Log::warning("Cerebras Advisor failed: " . $e->getMessage());
         }
 
         // 4. Cloudflare
@@ -757,7 +757,7 @@ Output must be ONLY a valid JSON object matching the schema. Do not output any m
             'Authorization' => "Bearer {$apiKey}",
             'Content-Type' => 'application/json'
         ])->post("https://api.cerebras.ai/v1/chat/completions", [
-            'model' => 'llama3.1-8b',
+            'model' => 'gemma-4-31b',
             'messages' => [
                 ['role' => 'user', 'content' => $prompt]
             ]
@@ -779,7 +779,7 @@ Output must be ONLY a valid JSON object matching the schema. Do not output any m
             'Authorization' => "Bearer {$apiKey}",
             'Content-Type' => 'application/json'
         ])->post("https://api.groq.com/openai/v1/chat/completions", [
-            'model' => 'llama-3.3-70b-versatile',
+            'model' => 'openai/gpt-oss-120b',
             'messages' => [
                 ['role' => 'user', 'content' => $prompt]
             ]
