@@ -12,10 +12,10 @@
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 
-        <!-- Google AdMob Test App ID (Dapat diganti dengan ID AdMob asli saat rilis produksi) -->
+        <!-- Google AdMob Production App ID -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-3940256099942544~3347511713"/>
+            android:value="ca-app-pub-1779672855845190~6913234530"/>
         <activity
             android:name=".MainActivity"
             android:exported="true"

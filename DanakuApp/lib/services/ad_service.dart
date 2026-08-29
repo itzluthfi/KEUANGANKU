@@ -11,7 +11,7 @@ class AdService {
 
   /// ⚙️ ID Unit Iklan Rewarded
   /// Ganti string di bawah ini dengan ID Unit Iklan Rewarded dari dashboard Google AdMob Anda ketika siap rilis.
-  static const String _productionAndroidRewardedAdUnitId = "ca-app-pub-3940256099942544/5224354917"; // ID Uji Coba Resmi Google
+  static const String _productionAndroidRewardedAdUnitId = "ca-app-pub-1779672855845190/3586082247"; // ID Asli AdMob Danaku
   static const String _productionIosRewardedAdUnitId = "ca-app-pub-3940256099942544/1712485313";     // ID Uji Coba Resmi Google
 
   String get rewardedAdUnitId {
