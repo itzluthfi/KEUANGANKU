@@ -7,6 +7,7 @@ import 'package:home_widget/home_widget.dart';
 import 'pages/main_page.dart';
 import 'pages/splash_page.dart';
 import 'services/notification_service.dart';
+import 'services/ad_service.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:firebase_core/firebase_core.dart';
@@ -18,6 +19,7 @@ void main() async {
     tz.initializeTimeZones();
     await NotificationService.instance.init();
     await NotificationService.instance.rescheduleDailyReminderIfNeeded();
+    await AdService.instance.init();
     try {
       await Firebase.initializeApp();
       NotificationService.instance.setupFcmListeners();

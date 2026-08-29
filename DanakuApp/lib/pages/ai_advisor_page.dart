@@ -104,7 +104,45 @@ class _AiAdvisorPageState extends State<AiAdvisorPage> {
     });
   }
 
-  Future<void> _requestAdvice() async {
+  Future<void> _generateAdvice() async {
+    final isOnline = SyncService.instance.connectionStatus.value;
+    if (!isOnline) {
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Row(
+              children: [
+                Icon(Icons.wifi_off_rounded, color: Colors.orange),
+                SizedBox(width: 10),
+                Text("Koneksi Diperlukan"),
+              ],
+            ),
+            content: const Text(
+              "Fitur Penasihat Keuangan (AI Advisor) memerlukan koneksi internet aktif untuk menghasilkan analisis keuangan yang akurat.",
+              style: TextStyle(height: 1.4),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Tutup", style: TextStyle(color: Colors.pink, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        );
+      }
+      return;
+    }
+
+    final hasQuota = await AiQuotaService.instance.checkAndRequireQuota(
+      context,
+      onRewardGranted: () {
+        _generateAdvice();
+      },
+    );
+    if (!hasQuota) return;
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -133,6 +171,7 @@ class _AiAdvisorPageState extends State<AiAdvisorPage> {
       );
 
       if (response.statusCode == 200) {
+        await AiQuotaService.instance.consumeQuota();
         final data = jsonDecode(response.body);
         final advice = data['advice'];
         final provider = data['provider'] ?? 'AI';

@@ -18,8 +18,8 @@ Route::get('/', function () {
 
 use App\Http\Middleware\CheckApiKey;
 
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
+Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 
 Route::middleware([CheckApiKey::class, 'throttle:20,1'])->group(function () {
     Route::post('/ai/parse-text', [AIController::class, 'parseText']);
@@ -28,12 +28,12 @@ Route::middleware([CheckApiKey::class, 'throttle:20,1'])->group(function () {
 });
 
 // Rute Privat (Wajib menyertakan Bearer Token Sanctum di Header HTTP)
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum'])->group(function () {
     Route::delete('/user/delete-account', [AuthController::class, 'deleteAccount']);
-    Route::post('/backup', [BackupController::class, 'backup']);
-    Route::get('/restore', [BackupController::class, 'restore']);
+    Route::post('/backup', [BackupController::class, 'backup'])->middleware('throttle:30,1');
+    Route::get('/restore', [BackupController::class, 'restore'])->middleware('throttle:30,1');
     Route::get('/ai/metrics', [AIController::class, 'metrics']);
-    Route::post('/ai/advise', [AIController::class, 'advise']);
+    Route::post('/ai/advise', [AIController::class, 'advise'])->middleware('throttle:15,1');
     
     // Notifikasi & FCM
     Route::post('/save-fcm-token', [NotificationController::class, 'saveFcmToken']);

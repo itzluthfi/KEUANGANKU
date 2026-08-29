@@ -381,7 +381,7 @@ class DatabaseHelper {
 
   // --- FUNGSI PENGATURAN GENERIK (UNTUK AUTH & BACKUP SIMULASI) ---
   Future<void> saveSetting(String key, String value) async {
-    if (key == 'secure_pin' || key == 'auth_token') {
+    if (key == 'secure_pin' || key == 'auth_token' || key == 'logged_in_email') {
       try {
         await _secureStorage.write(key: key, value: value);
         return;
@@ -399,7 +399,7 @@ class DatabaseHelper {
   }
 
   Future<String?> getSetting(String key) async {
-    if (key == 'secure_pin' || key == 'auth_token') {
+    if (key == 'secure_pin' || key == 'auth_token' || key == 'logged_in_email') {
       try {
         final val = await _secureStorage.read(key: key);
         if (val != null) return val;
@@ -422,7 +422,7 @@ class DatabaseHelper {
   }
 
   Future<void> deleteSetting(String key) async {
-    if (key == 'secure_pin' || key == 'auth_token') {
+    if (key == 'secure_pin' || key == 'auth_token' || key == 'logged_in_email') {
       try {
         await _secureStorage.delete(key: key);
       } catch (e) {

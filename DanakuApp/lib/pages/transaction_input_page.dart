@@ -15,6 +15,7 @@ import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
+import '../services/ai_quota_service.dart';
 import '../widgets/custom_snackbar.dart';
 
 class TransactionInputPage extends StatefulWidget {
@@ -485,6 +486,20 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
       return;
     }
 
+    final hasQuota = await AiQuotaService.instance.checkAndRequireQuota(
+      context,
+      onRewardGranted: () {},
+    );
+    if (!hasQuota) {
+      if (mounted) {
+        CustomSnackBar.show(
+          context,
+          message: "Foto struk terlampir (Mode tanpa AI karena kuota habis)",
+        );
+      }
+      return;
+    }
+
     setState(() => _isScanningReceipt = true);
 
     try {
@@ -502,6 +517,7 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
       final response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200) {
+        await AiQuotaService.instance.consumeQuota();
         final data = jsonDecode(response.body);
         if (!mounted) return;
         // Bukti transfer (bank/e-wallet) terdeteksi → langsung mode transfer
@@ -605,6 +621,14 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
   }
 
   Future<void> _processVoiceCommand(String text) async {
+    final hasQuota = await AiQuotaService.instance.checkAndRequireQuota(
+      context,
+      onRewardGranted: () {
+        _processVoiceCommand(text);
+      },
+    );
+    if (!hasQuota) return;
+
     setState(() => _isProcessingVoice = true);
 
     try {
@@ -618,6 +642,7 @@ class _TransactionInputPageState extends State<TransactionInputPage> with Single
       );
 
       if (response.statusCode == 200) {
+        await AiQuotaService.instance.consumeQuota();
         final data = jsonDecode(response.body);
 
         // Transfer antar dompet (mis. "transfer 50 ribu dari utama ke dana")
